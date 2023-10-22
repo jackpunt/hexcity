@@ -1,0 +1,80 @@
+syntax="proto3";
+import 'node_modules/@thegraid/wspbclient/lib/proto/GgProto.proto';
+
+//import "TypedMsg.proto";
+
+// Things to click: 
+// undo, turnButton=params/next, choose[]
+// plyrDist=draw/move, tileStack=draw, policStack=draw, 
+// 
+/** identify the intent and contents of this message */
+enum CmType {
+  cm_none = 0;             // used for testing new/non-specified/non-standard messages
+  cm_clik = 1;             // [cur] player has clicked on srcSlot (to draw/buy/discard a card);
+  cm_dand = 2;             // [cur] player has dropped card from srcInfo to dstInfo (to buy/build/discard/borrow)
+  cm_mark = 3;             // card being dragged is above dstInfo (to showMark during drag)
+  cm_draw = 4;             // reply to flip: draw card with name from srcSlot
+  cm_move = 5;             // move (by dist, in dir)
+  cm_next = 6;             // next(player) to Group; recv: set curPlayer using table.setNextPlayer() (click the turn button)
+  cm_undo = 7;             // player clicks UNDO button
+  cm_join = 8;             // send_join(to:ref, name="plyrName"); ref will reply_join(player: index=player_id) OR reply_join(player: undef, inform: 'name_in_use')
+  cm_chat = 9;             // group or DM to a player; inter-player chat, log/status from ref.
+  cm_cdir = 11;            // player has clicked a chooseDir Button; name = Button name: [C,N,E,S,W]
+  cm_param = 12;           // pre-game: negotiate TableParams also: send initial dist stack [key: ndx{0-3}, val: dist{1-4}]
+                           // send dist-stack before dropping Home card.
+}
+message CmSlot {
+  string name  = 1;     // cont.name || aname
+  int32  row   = 2;
+  int32  col   = 4;
+}
+/** type of value in TypedMsg oneof: used by CmProto-kvpair.patch */
+enum typedMsg_value {
+  notSet = 0;
+  boolValue = 3;
+  intValue = 4;
+  strValue = 5;
+}
+message TypedMsg {
+  oneof value {
+    bool boolValue = 3;
+    int32 intValue = 4;
+    string strValue = 5;
+  }
+}
+// see also: map<string, TypedValue> params = 8 // ?
+message KVpair {
+  string name  = 1;
+  TypedMsg value = 2;
+} 
+
+/** generally ref/player only accepts message from curPlayer */
+message CmMsgBase {
+  CmType type    = 1;    // indicates which fields are populated: 
+  int32  client  = 2;    // client_id from send-wrapper: wrapper.client_from
+  int32  player  = 3;    // player.index [0..N-1]; may be set on next(ndx); set by ref in join reply [< 0 for Observers]
+  string name    = 4;    // draw, dand[~], (Card.name) [response to flip] params("resetMrkt"), next("round1")
+  string json    = 5;    // JSON for various 
+  CmSlot srcSlot = 6;    // dand, flip, mark, draw, clic 
+  string inform  = 7;    // dand[~]: buy, build, discard [optional/redundant]; also chat
+  CmSlot dstSlot = 8;    // dand
+  int32  count   = 9;    // nreps, amount in MoveDebt
+  int32 client_to= 10;   // used internally by Referee: wrapper.client_id
+  repeated Rost roster = 11;
+  repeated KVpair params = 12; // map<string, TypedValue> params = 8 // ?
+}
+enum cmField {
+    cmField_0        = 0;    // required enum = 0
+    cmField_type     = 1;    // indicates which fields are populated: 
+    cmField_client   = 2;    // client_id from send-wrapper: wrapper.client_from
+    cmField_player   = 3;    // player.index [0..N-1]; may be set on next(ndx); set by ref in join reply [< 0 for Observers]
+    cmField_name     = 4;    // playerName for join; roster[client_id] -> [player,client,name]
+    cmField_json     = 5;    // 
+    cmField_srcSlot  = 6;    // dand, flit
+    cmField_inform   = 7;    // 
+    cmField_dstSlot  = 8;    // dand
+    cmField_count    = 9;    // 
+    cmField_roster   =10;
+    cmField_client_to= 11;   // used internally by Referee: wrapper.client_id
+    cmField_params   = 12;    // TP field = value
+}

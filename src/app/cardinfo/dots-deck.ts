@@ -1,0 +1,46 @@
+import { Deck } from '../card'
+import { C } from '../basic-intfs'
+/** This class and file are auto-generated do not edit. */
+export class DotsDeck {
+   static deck: Deck = {
+      name: 'DotsDeck',
+      cards: [
+        {nreps: 2, type: "Distance", name: "Distance-PURPLE-1", cost: 1, path: "Distance-PURPLE-1.png"},
+        {nreps: 2, type: "Distance", name: "Distance-PURPLE-2", cost: 2, path: "Distance-PURPLE-2.png"},
+        {nreps: 2, type: "Distance", name: "Distance-PURPLE-3", cost: 3, path: "Distance-PURPLE-3.png"},
+        {nreps: 1, type: "Distance", name: "Distance-PURPLE-4", cost: 4, path: "Distance-PURPLE-4.png"},
+        {nreps: 1, type: "Distance", name: "Distance-PURPLE-5", cost: 5, path: "Distance-PURPLE-5.png"},
+        {nreps: 1, type: "Distance", name: "Distance-PURPLE-6", cost: 6, path: "Distance-PURPLE-6.png"},
+        {nreps: 2, type: "Distance", name: "Distance-RED-1", cost: 1, path: "Distance-RED-1.png"},
+        {nreps: 2, type: "Distance", name: "Distance-RED-2", cost: 2, path: "Distance-RED-2.png"},
+        {nreps: 2, type: "Distance", name: "Distance-RED-3", cost: 3, path: "Distance-RED-3.png"},
+        {nreps: 1, type: "Distance", name: "Distance-RED-4", cost: 4, path: "Distance-RED-4.png"},
+        {nreps: 1, type: "Distance", name: "Distance-RED-5", cost: 5, path: "Distance-RED-5.png"},
+        {nreps: 1, type: "Distance", name: "Distance-RED-6", cost: 6, path: "Distance-RED-6.png"},
+        {nreps: 2, type: "Distance", name: "Distance-GREEN-1", cost: 1, path: "Distance-GREEN-1.png"},
+        {nreps: 2, type: "Distance", name: "Distance-GREEN-2", cost: 2, path: "Distance-GREEN-2.png"},
+        {nreps: 2, type: "Distance", name: "Distance-GREEN-3", cost: 3, path: "Distance-GREEN-3.png"},
+        {nreps: 1, type: "Distance", name: "Distance-GREEN-4", cost: 4, path: "Distance-GREEN-4.png"},
+        {nreps: 1, type: "Distance", name: "Distance-GREEN-5", cost: 5, path: "Distance-GREEN-5.png"},
+        {nreps: 1, type: "Distance", name: "Distance-GREEN-6", cost: 6, path: "Distance-GREEN-6.png"},
+        {nreps: 2, type: "Distance", name: "Distance-BLUE-1", cost: 1, path: "Distance-BLUE-1.png"},
+        {nreps: 2, type: "Distance", name: "Distance-BLUE-2", cost: 2, path: "Distance-BLUE-2.png"},
+        {nreps: 2, type: "Distance", name: "Distance-BLUE-3", cost: 3, path: "Distance-BLUE-3.png"},
+        {nreps: 1, type: "Distance", name: "Distance-BLUE-4", cost: 4, path: "Distance-BLUE-4.png"},
+        {nreps: 1, type: "Distance", name: "Distance-BLUE-5", cost: 5, path: "Distance-BLUE-5.png"},
+        {nreps: 1, type: "Distance", name: "Distance-BLUE-6", cost: 6, path: "Distance-BLUE-6.png"},
+        {nreps: 2, type: "Distance", name: "Distance-ORANGE-1", cost: 1, path: "Distance-ORANGE-1.png"},
+        {nreps: 2, type: "Distance", name: "Distance-ORANGE-2", cost: 2, path: "Distance-ORANGE-2.png"},
+        {nreps: 2, type: "Distance", name: "Distance-ORANGE-3", cost: 3, path: "Distance-ORANGE-3.png"},
+        {nreps: 1, type: "Distance", name: "Distance-ORANGE-4", cost: 4, path: "Distance-ORANGE-4.png"},
+        {nreps: 1, type: "Distance", name: "Distance-ORANGE-5", cost: 5, path: "Distance-ORANGE-5.png"},
+        {nreps: 1, type: "Distance", name: "Distance-ORANGE-6", cost: 6, path: "Distance-ORANGE-6.png"},
+        {nreps: 2, type: "Distance", name: "Distance-YELLOW-1", cost: 1, path: "Distance-YELLOW-1.png"},
+        {nreps: 2, type: "Distance", name: "Distance-YELLOW-2", cost: 2, path: "Distance-YELLOW-2.png"},
+        {nreps: 2, type: "Distance", name: "Distance-YELLOW-3", cost: 3, path: "Distance-YELLOW-3.png"},
+        {nreps: 1, type: "Distance", name: "Distance-YELLOW-4", cost: 4, path: "Distance-YELLOW-4.png"},
+        {nreps: 1, type: "Distance", name: "Distance-YELLOW-5", cost: 5, path: "Distance-YELLOW-5.png"},
+        {nreps: 1, type: "Distance", name: "Distance-YELLOW-6", cost: 6, path: "Distance-YELLOW-6.png"},
+        {nreps: 1, type: "Back", name: "Distance Back", cost: 262.0, step: 375.0, path: "Distance-Back.png"},
+   ]
+  }}
