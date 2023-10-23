@@ -326,7 +326,7 @@ export class Player extends EventDispatcher {
       let resCounter = new ValueCounter("phaseCounter", 0, C.phaseCounter, 16)
       let offs = cont.slotXY(info.offset.y/2, info.offset.x/2)
       resCounter.attachToContainer(cont, offs, player, info.type);
-      resCounter.setLabel(info.name)
+      resCounter.setLabel(info.name, undefined, 10);
       scaleCont.addUnscaled(resCounter);
       resCounter.name = player.name+"-"+info.name+"-Counter"
       return resCounter

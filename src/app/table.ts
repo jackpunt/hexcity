@@ -1232,7 +1232,7 @@ export class Table extends EventDispatcher {
     card.policyPlayer = card[S.buys] = card[S.builds] = card[S.polis] = undefined;
   }
 
-  scaleParams = { zscale: .20, initScale: .324, zero: 0.125, max: 30, limit: 2, base: 1.1, min: -2 };
+  scaleParams = { initScale: .125, scale0: .1, scaleMax: 6, steps: 30, zscale: .20,  };
   /** makeScaleableBack and setup scaleParams */
   makeScaleCont(bindKeys: boolean): ScaleableContainer {
     let scale = this.scaleParams.initScale = 0.324; // .125 if full-size cards

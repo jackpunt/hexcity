@@ -55,17 +55,17 @@ export class TableComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() {
-    setTimeout(()=>this.ngAfterViewInit0(), 150) // for Chrome install breakpoints...
+    setTimeout(()=>this.ngAfterViewInit2(), 250) //https://bugs.chromium.org/p/chromium/issues/detail?id=1229541
   }
-  ngAfterViewInit0() {
+  ngAfterViewInit2() {
     let href: string = document.location.href;
     console.log(stime(this, ".ngAfterViewInit---"), href, "ext=", this.ext)
-    if (href.endsWith("startup")) {
+    if (href.endsWith("startup")) { 
 
     }
     const urlParams = new URLSearchParams(window.location.search);
-    let ghost = urlParams.get('ghost') ?? 'localhost';
-    let extstr = urlParams.get('ext') ?? '';
+    let ghost = urlParams.get('ghost')
+    let extstr = urlParams.get('ext')
     let ext = !!extstr ? extstr.split(',') : []
     let mktstr = urlParams.get('mkt')
     if (!!mktstr) {
