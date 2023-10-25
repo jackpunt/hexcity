@@ -27,10 +27,10 @@ import { Effects } from './effects';
 import { GamePlay } from './game-play';
 import { MainMap } from './main-map';
 import { GUI, RoboBase, RoboOne } from './robo-player';
+import { LogWriter } from './stream-writer';
 import { Table } from './table';
 import { TP } from './table-params';
 import { ValueCounter } from "./value-counter";
-import { LogWriter } from './stream-writer';
 
 export class GameSetup {
   stage: Stage;

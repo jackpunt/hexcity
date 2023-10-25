@@ -4,14 +4,14 @@ import { Card, HouseToken } from './card';
 import { CC, CardContainer } from './card-container';
 import { CardEvent } from "./card-event";
 import { Effects } from './effects';
+import { GameSetup } from './game-setup';
+import { Hex, HexMap } from './hex';
 import { MainMap } from './main-map';
 import { Player } from './player';
 import { Table } from './table';
 import { TP } from './table-params';
-import { ValueCounter } from "./value-counter";
-import { Hex, HexMap } from './hex';
 import { Tile } from './tile';
-import { GameSetup } from './game-setup';
+import { ValueCounter } from "./value-counter";
 
 export type NamedObject = { name?: string, Aname?: string };
 
