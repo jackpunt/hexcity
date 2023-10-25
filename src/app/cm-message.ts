@@ -2,7 +2,7 @@ import { json } from '@thegraid/common-lib';
 import { IGgMessage, Rost } from '@thegraid/wspbclient';
 import { CmMsgBase, CmSlot, CmType, KVpair, TypedMsg } from '../proto/CmProto';
 
-export { CmType, CmSlot, KVpair, Rost, TypedMsg };
+export { CmSlot, CmType, KVpair, Rost, TypedMsg };
 
 type CmObjType = ReturnType<CmMsgBase['toObject']>
 type CMMK = keyof CmObjType
@@ -28,9 +28,9 @@ export class CmMessage extends CmMsgBase implements IGgMessage {
   override toObject(): ReturnType<CmMsgBase['toObject']> { return super.toObject()}
   client_from: number
   get msgType() { return CmType[this.type] }
-  /** 
+  /**
    * like toObject(), but only the supplied fields
-   * and replace 'type: number' with 'msgType: string' 
+   * and replace 'type: number' with 'msgType: string'
    */
   get msgObject(): {} {
     let msgObject = { msgType: `${this.msgType}(${this.type})`} as CmMessageOptsW

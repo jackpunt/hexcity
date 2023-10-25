@@ -2,7 +2,7 @@ import { stime } from '@thegraid/common-lib';
 // if using ctx = require.context(dir, true, /\.png$/); ctx.keys().forEach(ctx)
 // also need module.d.ts: declare module "*.png";
 // const dir = 'src/assets/main/images/cards'
-//const ctx = require.context('src/assets/main/images/cards', true, /\.png$/, 'eager'); 
+//const ctx = require.context('src/assets/main/images/cards', true, /\.png$/, 'eager');
 //const keys = ctx.keys()
 // ctx.keys().forEach(ctx)
 

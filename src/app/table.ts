@@ -1,6 +1,6 @@
-import { whileP } from '@thegraid/common-lib';
+import { Constructor, whileP } from '@thegraid/common-lib';
 import { Dragger, findFieldValue, KeyBinder, ParamGUI, ScaleableContainer, ScaleEvent, stime, Undo } from '@thegraid/easeljs-lib';
-import { Container, DisplayObject, EventDispatcher, MouseEvent, Point, Shape, Stage } from '@thegraid/easeljs-module';
+import { Container, DisplayObject, EventDispatcher, MouseEvent, Point, Shape, Stage, Text } from '@thegraid/easeljs-module';
 import { EzPromise } from '@thegraid/ezpromise';
 import { KVpair } from '../proto/CmProto';
 import { C, F, M, S, WH, XY } from './basic-intfs';
@@ -16,6 +16,8 @@ import { MainMap } from './main-map';
 import { Player } from './player';
 import { TP } from './table-params';
 import { ValueCounter } from "./value-counter";
+import { Hex, Hex2, HexMap } from './hex';
+import { Tile } from './tile';
 
 /** MakeCardContainer Options */
 export type MCCOpts = {
@@ -29,6 +31,56 @@ export type MCCOpts = {
 
   stackRow?: number, stackCol?: number, shuffle?:boolean, // shuffle stack onto [stackRow][stackCol]
 }
+
+class TextLog extends Container {
+  constructor(public Aname: string, nlines = 6, public size: number = 30, public lead = 3) {
+    super()
+    this.lines = new Array<Text>(nlines);
+    for (let ndx = 0; ndx < nlines; ndx++) this.lines[ndx] = this.newText(`//0:`)
+    this.addChild(...this.lines);
+  }
+
+  lines: Text[];
+  lastLine = '';
+  nReps = 0;
+
+  height(n = this.lines.length) {
+    return (this.size + this.lead) * n;
+  }
+
+  clear() {
+    this.lines.forEach(tline => tline.text = '');
+    this.stage?.update();
+  }
+
+  private newText(line = '') {
+    const text = new Text(line, F.fontSpec(this.size));
+    text.textAlign = 'left';
+    text.mouseEnabled = false;
+    return text;
+  }
+
+  private spaceLines(cy = 0, lead = this.lead) {
+    this.lines.forEach(tline => (tline.y = cy, cy += tline.getMeasuredLineHeight() + lead))
+  }
+
+  log(line: string, from = '', toConsole = true) {
+    line = line.replace('/\n/g', '-');
+    toConsole && console.log(stime(`${from}:`), line);
+    if (line === this.lastLine) {
+      this.lines[this.lines.length - 1].text = `[${++this.nReps}] ${line}`;
+    } else {
+      this.removeChild(this.lines.shift());
+      this.lines.push(this.addChild(this.newText(line)));
+      this.spaceLines();
+      this.lastLine = line;
+      this.nReps = 0;
+    }
+    this.stage?.update();
+    return line;
+  }
+}
+
 class TurnButton extends Shape {
   blocked: boolean = false
   radius: number
@@ -54,6 +106,24 @@ class TurnButton extends Shape {
     this.graphics.clear().beginFill(color).drawEllipse(-radius, -radius, 2 * radius, 2 * radius)
   }
 }
+export interface Dragable {
+  dragFunc0(hex: Hex2, ctx: DragContext): void;
+  dropFunc0(hex: Hex2, ctx: DragContext): void;
+}
+
+type MinDragInfo = { first?: boolean, event?: MouseEvent };
+
+export interface DragContext {
+  targetHex: Hex2;      // last isLegalTarget() or fromHex
+  lastShift: boolean;   // true if Shift key is down
+  lastCtrl: boolean;    // true if control key is down
+  info: MinDragInfo;    // we only use { first, event }
+  tile: Tile;           // the DisplayObject being dragged
+  nLegal?: number;      // number of legal drop tiles (excluding recycle)
+  phase?: string;       // keysof GameState.states
+  //gameState?: GameState;// gamePlay.gameState
+}
+
 /** Table holds the ScaleableContainer with MainMap and other CardContainers on the main Canvas. */
 export class Table extends EventDispatcher {
   constructor(stage: Stage) {
@@ -100,6 +170,8 @@ export class Table extends EventDispatcher {
   margin: number = 10;
   upscale: number = 1.5;
   mainMap: MainMap;
+  hexMap = new HexMap();
+  // get hexMap() { return this.mainMap; }
   chooseDir: ChooseDir;
   /** true before chooseStartPlayer. roundNumber == 0 */
   preGame: boolean = true;
@@ -110,6 +182,20 @@ export class Table extends EventDispatcher {
   paramGUI: ParamGUI;
   /** network game client */
   cmClient: CmClient;
+
+  turnLog = new TextLog('turnLog', 2);  // shows the last 2 start of turn lines
+  textLog = new TextLog('textLog', TP.textLogLines); // show other interesting log strings.
+
+  logTurn(line: string) {
+    this.turnLog.log(line, 'table.logTurn'); // in top two lines
+  }
+  logText(line: string, from = '') {
+    const text = this.textLog.log(`${this.gamePlay.turnNumber}: ${line}`, from || '***'); // scrolling lines below
+    this.gamePlay.logWriter.writeLine(`// ${text}`);
+    // JSON string, instead of JSON5 comment:
+    // const text = this.textLog.log(`${this.gamePlay.turnNumber}: ${line}`, from); // scrolling lines below
+    // this.gamePlay.logWriter.writeLine(`"${line}",`);
+  }
 
   get effects(): Effects { return Effects.effects }
 
@@ -234,6 +320,7 @@ export class Table extends EventDispatcher {
   curPlayer: Player;
   /** Places you can drop to implement a Policy: table.policySlots.concat(eachPlayer.plyrPolis) */
   allPolicy: CardContainer[] = [];
+
   /** Make all the Player containers and their contents for each player.
    * wire the auction and market containers to Buy and Build the cards.
    * @param table Table to be used
@@ -259,8 +346,7 @@ export class Table extends EventDispatcher {
       let player = new Player(table, color, dirCards, dirDiscard);
       return player.initializePlayer(playersCont, ndx);
     }
-    let colors: string[] = TP.playerColors;
-    let allPlayers = colors.slice(0, numPlayers).map(makeAndInitPlayer, table);
+    let allPlayers = TP.playerColors.slice(0, numPlayers).map(makeAndInitPlayer, table);
     playersCont.setChildIndex(dirDiscard, 0);
     playersCont.setChildIndex(dirCards, 0);
     // Players and plyrConts are made, now wire them up to the Game:
@@ -538,6 +624,18 @@ export class Table extends EventDispatcher {
     }
     turnButton.addEventListener(S.click, preGameCheck)
     return turnButton
+  }
+
+  /** all the non-map hexes created by newHex2 */
+  newHexes: Hex2[] = [];
+  newHex2(row = 0, col = 0, name: string, claz: Constructor<Hex2> = Hex2, sy = 0) {
+    const hex = new claz(this.hexMap, row, col, name);
+    hex.distText.text = name;
+    if (row <= 0) {
+      hex.y += (sy + row * .5 - .75) * (this.hexMap.radius);
+    }
+    this.newHexes.push(hex);
+    return hex
   }
 
   initialize() {
@@ -1248,7 +1346,7 @@ export class Table extends EventDispatcher {
     const m = this.margin
     const pg = this.paramGUI, pgb = pg && pg.getBounds()
     // Offset based on layout to right side of mainMap:
-    let minX = pgb ? (cw + 3*ch + 5*m + pgb.width) : (2*cw + 3*ch + 5*m) // ~width of playerCont
+    let minX = pgb ? (cw + 4*ch + 5*m + pgb.width) : (2*cw + 3*ch + 5*m) // ~width of playerCont
     let minY = m
     let ptZ = { x: -minX, y: -minY }
     let ptA = { x: -minX, y: -minY + (pg ? pg.y : 0) }

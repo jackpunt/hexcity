@@ -30,6 +30,7 @@ import { GUI, RoboBase, RoboOne } from './robo-player';
 import { Table } from './table';
 import { TP } from './table-params';
 import { ValueCounter } from "./value-counter";
+import { LogWriter } from './stream-writer';
 
 export class GameSetup {
   stage: Stage;
@@ -51,6 +52,15 @@ export class GameSetup {
     this.paramGUI?.selectValue("Network", val)
   }
   get netState() { return this._netState }
+
+  logTime_js: string;
+  readonly logWriter = this.makeLogWriter();
+  makeLogWriter() {
+    const logTime_js = this.logTime_js = `log_${stime.fs('MM-DD_Lkk_mm')}.js`;
+    const logWriter = new LogWriter(logTime_js, '[\n', ']\n'); // terminate array, but insert before terminal
+    return logWriter;
+  }
+
   /**
    * ngAfterViewInit --> start here!
    * @param canvasId supply undefined for 'headless' Stage
@@ -64,7 +74,7 @@ export class GameSetup {
     let stage = this.stage = makeStage(canvasId, false);
     if (! (stage instanceof Stage)) console.log(stime(this, `.new GameSetup: not a Stage:`), {stage, stage0: new Stage(canvasId), stage1: new Stage(canvasId)})
     this.table = new Table(stage)      // makeScaleCont()
-    this.gamePlay = new GamePlay(this.table)
+    this.gamePlay = new GamePlay(this.table, this);
     this.table.gamePlay = this.gamePlay
     this.table.cmClient = new CmClient()    // pro-forma, temporary, disconnected CmClient
   }

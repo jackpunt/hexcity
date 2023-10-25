@@ -62,6 +62,7 @@ export interface SiteInfo extends SlotInfo {
 export class MainMap extends CardContainer {
   table: Table
   _gamePlay: GamePlay
+  radius = TP.hexRad;
 
   constructor(source: Stack | Card[] | WH, opts?: CCopts) {
     super(source, opts)

@@ -1,14 +1,14 @@
-import { Player } from './player'
+import { findFieldValue, stime } from '@thegraid/common-lib'
+import { DisplayObject, Text } from '@thegraid/easeljs-module'
+import { C, F, Obj, S } from './basic-intfs'
 import { Card, Flag, HouseToken, Stack } from './card'
 import { CardEvent, ValueEvent } from "./card-event"
-import { ValueCounter } from "./value-counter"
-import { Table } from "./table"
-import { S, Obj, C, F } from './basic-intfs'
-import { DisplayObject, Text } from '@thegraid/easeljs-module'
-import { TP } from './table-params'
-import { MoveRec } from './main-map'
 import { ChooseDir, DirSpec } from './choose-dir'
-import { findFieldValue, stime } from '@thegraid/common-lib';
+import { MoveRec } from './main-map'
+import { Player } from './player'
+import { Table } from "./table"
+import { TP } from './table-params'
+import { ValueCounter } from "./value-counter"
 
 /** extreme form of JSON-minification */
 function json(obj: object): string {

@@ -4,7 +4,7 @@ import { AckPromise, CgBase, CgMessage, CgMessageOpts, GgClient, WebSocketBase }
 import { CmMsgBase } from 'src/proto/CmProto';
 import { S } from './basic-intfs';
 import type { Card, SlotInfo } from './card';
-import { CardContainer, CC } from './card-container';
+import { CC, CardContainer } from './card-container';
 import { CardEvent } from "./card-event";
 import { Button, DirKey } from './choose-dir';
 import { CmMessage, CmSlot, CmType, KVpair } from './cm-message';

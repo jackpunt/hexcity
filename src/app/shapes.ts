@@ -183,53 +183,6 @@ export class RectShape extends PaintableShape {
   }
 }
 
-/** lines showing influence of a Tile. */
-export class InfRays extends Shape {
-  /**
-   * draw 6 rays (around a HexShape)
-   * @param inf number of rays to draw (degree of influence)
-   * @param infColor color of ray
-   * @param yIn start ray @ yIn X TP.hexRad
-   * @param yOut end ray @ YOut X TP.hexRad
-   * @param xw width of each ray
-   */
-  constructor(inf = 1, colorn: string, yIn = .7, yOut = .9, xw = 3, g = new Graphics()) {
-    super(g);
-    const rad = TP.hexRad, y1 = yIn * rad, y2 = yOut * rad;
-    const xs = [[0], [-.1 * rad, +.1 * rad], [-.1 * rad, 0, +.1 * rad]][Math.abs(inf) - 1];
-    const pts = xs.map(x => { return { mt: { x: x, y: y1 }, lt: { x: x, y: y2 } } })
-    const rotpt = (rot: number, x: number, y: number) => {
-      return { x: Math.cos(rot) * x + Math.sin(rot) * y, y: Math.cos(rot) * y - Math.sin(rot) * x }
-    }
-    g.ss(xw).s(colorn);
-    const hexDirs = TP.useEwTopo ? H.ewDirs : H.nsDirs;
-    hexDirs.forEach((dir: HexDir) => {
-      const rot = H.dirRot[dir] * H.degToRadians;
-      pts.forEach(mtlt => {
-        const mt = rotpt(rot, mtlt.mt.x, mtlt.mt.y), lt = rotpt(rot, mtlt.lt.x, mtlt.lt.y);
-        g.mt(mt.x, mt.y).lt(lt.x, lt.y);
-      });
-    })
-    this.cache(-rad, -rad, 2 * rad, 2 * rad);
-  }
-}
-
-export class InfShape extends HexShape {
-  /** hexagon scaled by TP.hexRad/4 */
-  constructor(bgColor = 'grey') {
-    super();
-    this.cgf = this.iscgf;
-    this.paint(bgColor);
-  }
-
-  iscgf(colorn: string) {
-    const g = this.graphics;
-    g.c().f(colorn).dp(0, 0, TP.hexRad, 6, 0, 30);
-    new InfRays(1, undefined, .3, .9, 10, g); // short & wide; it gets scaled down
-    return this.graphics;
-  }
-}
-
 export class TileShape extends HexShape {
   static fillColor = C1.lightgrey_8;// 'rgba(200,200,200,.8)'
 
@@ -257,72 +210,6 @@ export class TileShape extends HexShape {
     const fillColor = C.nameToRgbaString(colorn, .8);
     this.replaceDisk(fillColor, this.radius * H.sqrt3_2 * (55 / 60));
     return this.graphics = g;
-  }
-}
-
-
-/** add to Tile to indicate nB, fB, nR, fR.
- * nB is blue disk, fB is blue circle.
- * nR is tan disk, fR is tan circle.
- */
-export class BalMark extends Shape {
-  static bColor = 'rgba(133,193,233,.8)';
-  static rColor = 'rgba(200,180,160,.8)';
-
-  constructor(tile: Tile) {
-    super();
-    // const { nB, fB, nR, fR } = tile, x0 = TP.hexRad * H.sqrt3_2 * .75;
-    // this.bMark(nB, fB, x0-5, BalMark.bColor);
-    // this.bMark(nR, fR, x0-0, BalMark.rColor);
-  }
-
-  bMark(n = 0, f = 0, x = 0, color = C.black, ds = [5, 5]) {
-    if (n + f <= 0) return;
-    const g = this.graphics, y = TP.hexRad / 4;
-    if (n) { g.ss(4) } else { g.sd(ds) };
-    g.s(color).mt(-x, y).lt(x, y);
-    return;
-  }
-}
-
-function mulPCR(b: XY, w: XY, c: XY, scale: number) {
-  const rv: PlayerColorRecord<XY> = playerColorRecord();
-  const pcr = playerColorRecord(b, w, c);
-  Object.keys(pcr).forEach((pc: PlayerColor) => { rv[pc] = { x: pcr[pc].x * scale, y: pcr[pc].y * scale } });
-  return rv;
-}
-
-/** CapMark indicates if hex can be or has been captured. */
-export class CapMark extends Shape {
-  static capColor = H.capColor1    // dynamic bind in GamePlay.doProtoMove()
-  static capSize = TP.hexRad / 4   // depends on HexMap.height
-  static xyOffset = mulPCR({ x: -.5, y: .4 }, { x: .5, y: .4 }, { x: 0, y: -.6 }, TP.hexRad);
-  constructor(pc: PlayerColor, vis = true, xy = CapMark.xyOffset[pc], rad = TP.hexRad) {
-    super()
-    this.visible = vis;
-    this.mouseEnabled = false;
-    this.paint(TP.colorScheme[pc]);
-    this.setXY(pc);
-  }
-
-  setXY(pc: PlayerColor, tile?: Tile, cont?: Container, xyOff = CapMark.xyOffset) {
-    const xy = xyOff[pc];
-    tile?.localToLocal(xy.x, xy.y, cont, this);
-    cont?.addChild(this);
-  }
-
-  // for each Player: hex.tile
-  paint(color = CapMark.capColor, vis = true) {
-    this.graphics.c().f(color).dp(0, 0, CapMark.capSize, 6, 0, 30);
-    this.visible = vis;
-  }
-}
-
-export class MeepCapMark extends CapMark {
-  static override xyOffset = mulPCR({ x: -.6, y: .4 }, { x: .6, y: .4 }, { x: 0, y: 1.5 }, TP.meepleRad);
-
-  override setXY(pc: PlayerColor, tile?: Tile, cont?: Container, xyOff = MeepCapMark.xyOffset) {
-    super.setXY(pc, tile, cont, xyOff);
   }
 }
 

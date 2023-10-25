@@ -10,7 +10,7 @@ import { ValueCounter as CommonValueCounter } from '@thegraid/easeljs-lib';
 
 export class ValueCounter extends CommonValueCounter {
   private playerColor(color: string) { return (TP.playerColors.includes(color) || TP.playerRGBcolors.includes(color)) }
-  override setValue(value: number | string, color?: string, fontSize?: number, fontName?: string, 
+  override setValue(value: number | string, color?: string, fontSize?: number, fontName?: string,
     // if not supplied: use C.white over playerColors
     textColor = this.playerColor(color) ? C.white : undefined) {
     super.setValue(value, color, fontSize, fontName, textColor)
@@ -36,7 +36,7 @@ export class ValueCounter extends CommonValueCounter {
     let offs = cont.slotXY(row, col, offset.x, offset.y); // offset from center of slot[row,col]
     let overCont = cont.overCont; // may hold (cont.parent as ContainerAt).overCont;
     // cont and overCont have the same (ContainerAt) parent, but may have different translation or offset
-    cont.localToLocal(offs.x, offs.y, overCont, counter); // generally a no-op: overlay is at CardContaier(0,0) 
+    cont.localToLocal(offs.x, offs.y, overCont, counter); // generally a no-op: overlay is at CardContaier(0,0)
     overCont.addChild(counter);
     this.stage.update();
     //console.log(stime(this, ".attachToSlot: counter.xy="), counter.name, counter.x, counter.y)

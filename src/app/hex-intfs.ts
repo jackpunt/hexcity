@@ -1,4 +1,4 @@
-import { RC } from "@thegraid/common-lib"
+import { RC } from "@thegraid/common-lib";
 
 /** Hexagonal canonical directions */
 export enum Dir { C, NE, E, SE, SW, W, NW }

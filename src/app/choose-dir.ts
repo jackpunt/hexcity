@@ -25,7 +25,7 @@ export class Button extends Container {
     this.coins.setValue(val || 0, isNum ? C.coinGold : C.white, 50)    // val may be text: string
     this.coins.visible = (!!val)       // null cost => coin not visible
     this.visible = (val !== undefined) // so null (no coin) button is VISIBLE
-    // coins==undefined ==> no Button; coins=null ==> Button, no Coin; 
+    // coins==undefined ==> no Button; coins=null ==> Button, no Coin;
   }
   set rotate(dir: string) { this.rotation = S.dirRot[dir] }
 
@@ -114,9 +114,9 @@ export class ChooseDir extends Container implements HasSlotInfo {
   }
 
   /** wait for Player to choose a button
-   * 
+   *
    * Put up GUI, fulfill EzPromise when user makes choice
-   * 
+   *
    * @param card indicates where to place this chooser
    * @param player the player being asked
    * @param spec specifies the value and visiblility of the five {N,E,S,W,C} Buttons

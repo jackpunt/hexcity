@@ -1,4 +1,4 @@
-import { stime } from '@thegraid/common-lib';
+import { Constructor, stime } from '@thegraid/common-lib';
 import { Container, EventDispatcher, MouseEvent, Shape, Stage, Text } from '@thegraid/easeljs-module';
 import { EzPromise } from '@thegraid/ezpromise';
 import { C, F, Obj, S, WH, XY } from './basic-intfs';
@@ -15,6 +15,7 @@ import type { Table } from "./table";
 import { TP } from './table-params';
 import { Notifyable } from './types';
 import { ValueCounter } from "./value-counter";
+import { Tile } from './tile';
 
 /** all the vitals to reset Player to pre-move status (CardRec + resource slots) */
 export type PlayerState = {
@@ -72,6 +73,8 @@ class DistArranger extends CardContainer {
 }
 
 export class Player extends EventDispatcher {
+  readonly Aname: string;
+
   name: string;
   color: string;     // Nominal Color: "RED" "BLUE"
   rgbColor: string;  // Actual color, if supplied
@@ -168,6 +171,9 @@ export class Player extends EventDispatcher {
     return this.table.curPlayer == this
   }
   get gamePlay(): GamePlay { return this.table.gamePlay; }
+  get colorn(): string { return this.color; }  // TP.colorScheme[this.PlayerColor]
+  allOf<T extends Tile>(claz: Constructor<T>) { return (Tile.allTiles as T[]).filter(t => t instanceof claz && t.player === this); }
+  allOnMap<T extends Tile>(claz: Constructor<T>) { return this.allOf(claz).filter(t => t.hex?.isOnMap); }
 
   isExempt(event: Card, time = stime(this, ".isExempt")): boolean {
     let exempt = (this.rangeRaw < event.step)

@@ -135,12 +135,12 @@ export namespace S {
   export const arrivalFrom: string = "arrivalFrom" // Card fieldName (for Airport)
   export const fromTransit: string = "fromTransit" // MovRec fieldName (for transitTo/isLoopRec)
 
-  export const Event:       string = "Event"       // Card Type 
-  export const Policy:      string = "Policy"      // Card Type 
-  export const Deferred:    string = "Deferred"    // Card Type 
-  export const Temp_Policy: string = "Temp Policy" // Card Type 
-  export const Future_Event:string = "Future Event"// Card Type 
-  
+  export const Event:       string = "Event"       // Card Type
+  export const Policy:      string = "Policy"      // Card Type
+  export const Deferred:    string = "Deferred"    // Card Type
+  export const Temp_Policy: string = "Temp Policy" // Card Type
+  export const Future_Event:string = "Future Event"// Card Type
+
   export const cardCounter: string = "cardCounter" // Stack field
   export const legalMark:   string = "legalMark"   // Stack field on MainMap
 
@@ -184,7 +184,7 @@ export namespace C {
 }
 
 export class Obj {
-  /** like Object.fromEntries(...[string, any]) 
+  /** like Object.fromEntries(...[string, any])
    * @param rv supply empty object (of prototype)
    */
   static fromEntries<T extends object>(ary: [string, any][], rv:T = {} as T): T {

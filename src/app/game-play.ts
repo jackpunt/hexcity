@@ -1,25 +1,38 @@
 import { stime } from '@thegraid/common-lib';
 import { C, Obj, S } from './basic-intfs';
 import { Card, HouseToken } from './card';
-import { CardContainer, CC } from './card-container';
+import { CC, CardContainer } from './card-container';
 import { CardEvent } from "./card-event";
-import { ValueCounter } from "./value-counter";
 import { Effects } from './effects';
 import { MainMap } from './main-map';
 import { Player } from './player';
 import { Table } from './table';
 import { TP } from './table-params';
+import { ValueCounter } from "./value-counter";
+import { Hex, HexMap } from './hex';
+import { Tile } from './tile';
+import { GameSetup } from './game-setup';
+
+export type NamedObject = { name?: string, Aname?: string };
 
 export class GamePlay {
   table: Table
   mainMap: MainMap;
+  hexMap: HexMap<Hex>;
 
-  constructor (table: Table) {
+  constructor (table: Table, public gameSetup: GameSetup) {
     this.table = table
   }
   get effects(): Effects { return Effects.effects }
 
   get curPlayer(): Player { return this.table.curPlayer }
+  get turnNumber() { return this.table.turnNumber; }
+
+  get logWriter() { return this.gameSetup.logWriter; }
+
+  logText(line: string, from = '') {
+    if (this instanceof GamePlay) this.table.logText(line, from);
+  }
 
   checkRoadRotation(ce: CardEvent) {
     if (!ce.cont.dropToOrigSlot) return
@@ -269,6 +282,11 @@ export class GamePlay {
       this.table.adjustAllRentsAndStats()   // buy Policy; no tileChange until builds Tile
     this.table.curPlayer.robo.notify(this.table, S.dropDone)  // payBuyCost
   }
+
+  placeEither(tile: Tile, toHex: Hex, payCost = true) {
+    // TODO: merge code with payBuildCost(CardEvent);
+  }
+
   /**
    * mainMap.on(S.dropped): Build Tile on stack/slot.
    * pay stack[S.buildCost] & adjustAllRentsAndStats(ce.card)

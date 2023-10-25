@@ -5,15 +5,15 @@ import { CmClient, CmMessageOpts } from "./cm-client";
 import { CmMessage, CmType, KVpair, TypedMsg } from "./cm-message";
 import { Player } from "./player";
 
-/** 
- * In-browser Referee, sharing TP and Decks with the original GameSetup/Table. 
- * 
+/**
+ * In-browser Referee, sharing TP and Decks with the original GameSetup/Table.
+ *
  * Base class for GgRefMixin -> CmReferee
  */
 export class CmReferee extends GgRefMixin<CmMessage, typeof CmClient>(CmClient) {
   /** specialized CmClient for Referee. Invoked through CgRefMixin */
   constructor(url?: string, onOpen?: (cmReferee: CmReferee) => void) {
-    super(url, onOpen)   // 
+    super(url, onOpen)   //
   }
 
   override eval_join(message: CmMessage) {
@@ -41,10 +41,10 @@ export class CmReferee extends GgRefMixin<CmMessage, typeof CmClient>(CmClient) 
       console.log(stime(this, `${ident} notCurPlayer`), { client_from, player_from, curPlayerNdx })
       this.sendCgNak(`notCurPlayer: ${player_from} !== ${curPlayerNdx}`, { client_id: client_from })
       return true; // with eval_msg being Nak'd
-    } 
+    }
     return false;
   }
-  /** cmPlayer must set {client_id: 0} send ONLY to referee. 
+  /** cmPlayer must set {client_id: 0} send ONLY to referee.
    * cmReferee will validate, and send next(ndx) to all of Group.
    */
   override eval_next(message: CmMessage) {
@@ -59,7 +59,7 @@ export class CmReferee extends GgRefMixin<CmMessage, typeof CmClient>(CmClient) 
       this.table.setNextPlayer()         // advance curPlayerNdx (!? may draw/discard cards onTurn event?)
       this.sendCgAck(cause, {client_id: client_from}) // singular Ack
       this.sendNextPlayer()              // broadcast send_next(ndx) to Group & Self
-      return   
+      return
     }
 
     // ELSE: handle preGame params and maybe chooseStartPlayer:
@@ -113,7 +113,7 @@ export class CmReferee extends GgRefMixin<CmMessage, typeof CmClient>(CmClient) 
     console.log(stime(this, ".chooseStartPlayer ----------------------------------------------------------"))
     // send all the dist flips, then wait for Promise.all(AckPromise)
     let ackPromise: AckPromise; // new AckPromise(undefined).fulfill(null)
-    let logObj = {} 
+    let logObj = {}
     let refNextDist = (plyr: Player): number => {
       // let dist0 = plyr.getNextDistance(undefined, true).value
       plyr.prepareDistance(true) // shuffle & burn as necessary
@@ -154,7 +154,7 @@ export class CmReferee extends GgRefMixin<CmMessage, typeof CmClient>(CmClient) 
   /**
    * curPlayer send dand to referee, ack enables server to sendToGroup.
    * other clients dragStartAndDrop
-   * 
+   *
    * Note: dand (dropOnDiscard) also activates Events! which may draw dist/dir.
    */
   override eval_dand(message: CmMessage) {
@@ -188,15 +188,15 @@ export class CmReferee extends GgRefMixin<CmMessage, typeof CmClient>(CmClient) 
 
   /**
    * Click on stack: dispatch(S.clicked):
-   * maybe Buy/DanD?, Discard?, Event? 
-   * 
+   * maybe Buy/DanD?, Discard?, Event?
+   *
    * If draw Cards, setAutoCardNames [do it all synchronously!]
-   * 
+   *
    * equivalent to CC.mouseClickOnCC()
-   * 
+   *
    * sendCardsInAck to release 'flip' to rest of Group.
-   * 
-   * @param message 
+   *
+   * @param message
    */
   override eval_clik(message: CmMessage) {
     // Ideally, we would synthesize a createjs.Event and dispatch to the Bitmap on stack
@@ -211,10 +211,10 @@ export class CmReferee extends GgRefMixin<CmMessage, typeof CmClient>(CmClient) 
   }
 
   /**
-   * Sent from referee, during preGame, for chooseStartPlayer.  
+   * Sent from referee, during preGame, for chooseStartPlayer.
    * (there are no side-effects, no secondary draw or effects)
    * QQQQ: should we just send_clik? with autoCardNames? (assuming that clik on plyrDist would draw in preGame)
-   * 
+   *
    * {nocc: true} because we invoke process_draw(message) before sending it.
    * @param name Card.name of the Card that was flipped.
    * @param srcSlotI slotInfo where to find Card with name

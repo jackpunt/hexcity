@@ -22,10 +22,10 @@ export class ValueEvent extends Event {
 
  export class CardEvent extends ValueEvent implements SlotInfo {
   //card: Card; row: number; col: number; cont: CardContainer; fromNet: boolean = false;
-  constructor(type: string, 
-    public card: Card, 
-    public row: number = 0, public col: number = 0, 
-    public cont: CardContainer = undefined, 
+  constructor(type: string,
+    public card: Card,
+    public row: number = 0, public col: number = 0,
+    public cont: CardContainer = undefined,
     public fromNet = false) {
     super(type, 0);
     this.bubbles = (type === S.dragStart);

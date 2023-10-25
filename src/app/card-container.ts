@@ -45,6 +45,7 @@ class DropMark extends Shape implements HasSlotInfo {
   }
   setSlotInfo(info: SlotInfo): SlotInfo { return this.slotInfo = info }
 }
+
 // may be a Child on a ScalableContainer
 /** Container for Arrays of Stack... */
 export class CardContainer extends Container {

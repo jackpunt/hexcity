@@ -1,10 +1,10 @@
 import { stime } from '@thegraid/common-lib';
 import { Bitmap, Container, DisplayObject, Text } from '@thegraid/easeljs-module';
+import type { DebtContainer } from './Debt';
 import { C, F, S, WH } from './basic-intfs';
 import { CardContainer } from './card-container';
-import type { DebtContainer } from './Debt';
-import { Player } from './player';
 import { loadImage } from './image-loader';
+import { Player } from './player';
 import { Table } from './table';
 import { TP } from './table-params';
 import { ValueCounter } from "./value-counter";
