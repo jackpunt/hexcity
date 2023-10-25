@@ -1,5 +1,9 @@
 import { S } from "./basic-intfs";
 
+
+export function buildURL(scheme = 'wss', host = TP.ghost, domain = TP.gdomain, port = TP.gport, path = ''): string {
+  return `${scheme}://${host}.${domain}:${port}${path}`
+}
 export class TP {
   static numPlayers = 2;
   static mapRows:number = 7;   /// standard: 6

@@ -1,5 +1,4 @@
-import { Component } from '@angular/core';
-import { HostListener, Injectable } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { KeyBinder } from '@thegraid/easeljs-lib';
 
 @Component({

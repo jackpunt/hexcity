@@ -1,3 +1,4 @@
+import { Params } from '@angular/router';
 import { CycleChoice, Dragole, KeyBinder, makeStage, ParamGUI, ParamItem, stime } from '@thegraid/easeljs-lib';
 import { Container, Stage } from '@thegraid/easeljs-module';
 import { CgMessage, CLOSE_CODE } from '@thegraid/wspbclient';
@@ -51,11 +52,14 @@ export class GameSetup {
   }
   get netState() { return this._netState }
   /**
+   * ngAfterViewInit --> start here!
    * @param canvasId supply undefined for 'headless' Stage
    * @param ghost server hosting CgServer/CmServer
    */
-  constructor(canvasId: string, ghost?: string) {
-    this.ghost = ghost
+  constructor(canvasId: string, qParms?: Params) {
+    this.ghost = qParms['host'];
+    TP.marketTileNames = qParms['mkt']?.split(',') ?? [];  // set TableParams
+    this.excludeExt = qParms['ext']?.split(',') ?? [];
     stime.fmt = "MM-DD kk:mm:ss.SSS"
     let stage = this.stage = makeStage(canvasId, false);
     if (! (stage instanceof Stage)) console.log(stime(this, `.new GameSetup: not a Stage:`), {stage, stage0: new Stage(canvasId), stage1: new Stage(canvasId)})

@@ -14,19 +14,19 @@ export interface Deck {
   cards: CardInfo[];
   stack?: Stack;
 }
-/** identify where Card is stacked. 
+/** identify where Card is stacked.
  * card.slotInfo = current stack (when dropped/moved)
  * card.origSlot = previous stack (at dragStart)
  */
 export interface SlotInfo {
-  cont: CardContainer, // instanceof CardContainer, but we don't import that here
+  cont: CardContainer, // main board is a HexMap, others are simple TileSource (row,col = 0,0).
   row: number,
   col: number,
-  stack?: Stack,     // beneath CardContainer
+  stack?: Stack,     // beneath CardContainer; Array<Card | Tile>
   aname?: string,    // cont.name
 }
-/** object associated with a settable SlotInfo: {cont, row, col, stack?, aname?} 
- * 
+/** object associated with a settable SlotInfo: {cont, row, col, stack?, aname?}
+ *
  * suitable target for CardContaine.moveAndSetSlotInfo()
  */
 export interface HasSlotInfo extends DisplayObject {
@@ -43,10 +43,10 @@ export class Stack extends Array<Card> {
 
   constructor(cards?: Card[]) {
     if (typeof(cards) == 'number') {
-      super(cards) 
+      super(cards)
     } else {
       super()
-    } 
+    }
     if (cards instanceof Array) this.pushCards(cards)
   }
   /** see also: CardContainer.stackCards(Card[], row, col) */
@@ -54,14 +54,14 @@ export class Stack extends Array<Card> {
     cards.forEach(card => this.push(card))
   }
   /**
-   * Shuffle all the cards in the given Stacks, 
+   * Shuffle all the cards in the given Stacks,
    * returning a single new and newly premuted Stack.
    * @param stacks any number of Stack
    * @return concatenated and premuted Stack
    */
   shuffle(...stacks: Card[][]): Stack {
     let cards = this.concat(...stacks)
-    let newStack: Stack = new Stack(cards); 
+    let newStack: Stack = new Stack(cards);
 
     // permute the Cards:
     for (let i = 0, len = newStack.length; i < len; i++) {
@@ -73,7 +73,7 @@ export class Stack extends Array<Card> {
     return newStack;
   }
   /** splice card from stack and slotInfo = undefined
-   * @param card 
+   * @param card
    * @param ndx if you know the index of card within stack, bypass a findIndex() call
    * @return true if card is found/removed; false if card not found
    */
@@ -87,14 +87,14 @@ export class Stack extends Array<Card> {
     return true
   }
 
-  /** find 1 card, remove it from Stack (unless keep = true) 
+  /** find 1 card, remove it from Stack (unless keep = true)
    * @param name a string or a find function (card:Card, ndx:number, ary:Card[]):boolean
-   * @param keep set true to leave card in this Stack; Default = false: remove the card.  
+   * @param keep set true to leave card in this Stack; Default = false: remove the card.
    * Note: CC.addCard() will also removeCardFromStack
    */
   findCard(name: string | ((card: Card, ndx: number, ary: Card[]) => boolean), keep = false): Card {
-    let selectFunc = ((typeof name) == "function") 
-    ? (name as ((card: Card, ndx: number, ary: Card[]) => boolean)) 
+    let selectFunc = ((typeof name) == "function")
+    ? (name as ((card: Card, ndx: number, ary: Card[]) => boolean))
              : ((card: Card, ndx: number, ary: Card[]):boolean => (card.name == (name as string)))
     return this.find((card, ndx, ary): boolean => {
       if (selectFunc(card, ndx, ary)) {
@@ -121,7 +121,7 @@ export class Stack extends Array<Card> {
     }
     return rv;
   }
-  /** 
+  /**
    * filter (or filterInReverse) finding Cards that satisfy selector.
    * @param selector the Card.name or a function to determine match.
    * @param keep indicates whether to keep or remove the matched Card(s) [default=false]
@@ -141,7 +141,7 @@ export class Stack extends Array<Card> {
     //console.log(stime(this, ".findCards: selector="), selector)
     let pred: (card: Card, ndx: number, ary: []) => boolean;
     if (!(typeof(selector) == "string")) {
-      pred = selector as ((card: Card, ndx: number, ary: []) => boolean) 
+      pred = selector as ((card: Card, ndx: number, ary: []) => boolean)
       //console.log(stime(this, ".findCards: using predicate="), pred)
     }
     //let pred0 = (name.length == undefined) ? name as ((card: Card, ndx: number, ary: []) => boolean) : undefined
@@ -173,7 +173,7 @@ export interface CardInfo {
   imagePromise?: Promise<HTMLImageElement>
 }
 
-// open question if we should deckify as n-instances of Card, 
+// open question if we should deckify as n-instances of Card,
 // or maintain & use the nreps.
 
 /** represents [nreps of] a Card.
@@ -185,8 +185,8 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   /** specifically "Card", not a subclass like Flag, HouseToken or Debt */
   isClassCard(): this is Card { return this.constructor.name == Card.cardClassName; }
   // CanvasImageSource | String | Object
-  /**  createjs.Bitmap(imageOrUrl: string | Object 
-   * | HTMLImageElement | HTMLCanvasElement 
+  /**  createjs.Bitmap(imageOrUrl: string | Object
+   * | HTMLImageElement | HTMLCanvasElement
    * | HTMLVideoElement): createjs.Bitmap
    * @param info a CardInfo or existing Card
    * @param nrep optional: use info.nreps || 1
@@ -203,7 +203,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     // with new (1.0.0) createjs, can pass the actual Image to contstructor
     // if is still a Promise<HTMLImageElement> then need to arrange to find the resulting Image.
     // @see Bitmap.js in createjs.js
-    this.bitmap = (info instanceof Card) ? new Bitmap(info.bitmap.image) : new Bitmap(Card.assetPath + info.path); 
+    this.bitmap = (info instanceof Card) ? new Bitmap(info.bitmap.image) : new Bitmap(Card.assetPath + info.path);
     this.addChild(this.bitmap)
     let { nreps, type, name, cost, step, stop, rent, vp, path, ext, subtype, text, props = {}, image, imagePromise } = info;
     if (subtype == "Test") {
@@ -290,7 +290,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   subtype: string | null;
   text: string | null;
   props: object;
-  _width: number;     // for "Back" card 
+  _width: number;     // for "Back" card
   _height: number;
   bitmap: Bitmap;
   image: HTMLImageElement; // or maybe createjs.Bitmap
@@ -313,7 +313,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     cont.addCard(this, row, col) // return to origSlot
   }
   _owner: Player;        // current owner of this Card
-  get owner() { return this._owner }; 
+  get owner() { return this._owner };
   set owner(p: Player) { this.setOwner(p) }
   ownerFlag: Flag;      // a Flag > Card > Bitmap
   table: Table;         // used in effects to find card.table.curPlayer
@@ -338,7 +338,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   noVpCounter: boolean = false;
   vpCounter: ValueCounter;    // overlay VP Counter, if card has one. (where card.vp == "*") //Container; //
   stopCounter: ValueCounter; // Container; //
-  counters: ValueCounter[]; // ValueCounter(s) to be discarded along with this Card //Container[] = []// 
+  counters: ValueCounter[]; // ValueCounter(s) to be discarded along with this Card //Container[] = []//
   hasDRinDB: boolean;
 
   /** add or remove card.owner and Flag.
@@ -385,7 +385,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   }
   setOrigSlot(info?: SlotInfo) {
     if (!info) info = this.slotInfo
-    this.origSlot = this.fillInfo(info)    
+    this.origSlot = this.fillInfo(info)
   }
   /** Undo moveCard: add this Card to slotInfo = origSlot. */
   moveCardUndo(os = this.origSlot) {
@@ -411,7 +411,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   }
   /** put card in new {cont, row, col} with undoRecs  */
   moveCardWithUndo(ncont: CardContainer, nrow: number = 0, ncol: number = 0) {
-    let card = this 
+    let card = this
     let {cont: ccont, row: crow, col: ccol} = card.slotInfo   // current location [loc0]
     if (ccont !== ncont || crow !== nrow || ccol !== ncol) {
       // set origSlot=loc0,delete slotInfo; dispatch(S.moved); if (ncont==discardT) moveCardWithUndo(discardT)!
@@ -450,11 +450,11 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   }
 
 
-  /** Return Array of each Card specified in CardInfo.  
+  /** Return Array of each Card specified in CardInfo.
    * All cardinfo is present, nreps=1 (multiple instances), no images.
-   * 
+   *
    * @param info a CardInfo[], for example: HomeDeck.deck
-   * @param donefunc function(stack) called when all Images are loaded. 
+   * @param donefunc function(stack) called when all Images are loaded.
    * @param thisArg call donefunc with 'this'
    * @return a Stack of the Cards; stack.imagePromises: Array\<Promise\<HTMLImageElement>>
    */
@@ -513,7 +513,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   isTax(): boolean {
     return (this.isEvent() && this.subtype == S.Tax) // Property Tax, Wealth Tax, Income Tax
   }
-  /** Tile (to MainMap) vs Policy - Event; isClassCard() 
+  /** Tile (to MainMap) vs Policy - Event; isClassCard()
    * @param except return false for specified tileTypes.
    */
   isTile(...except: string[]): boolean {
@@ -537,21 +537,21 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   isFromPrjs(): boolean {
     return !!this.origSlot && this.origSlot.cont.name.endsWith(S.Prjs)
   }
-  /** Zero-Cost Events, Deferred, and Future Event from plyrProj. 
+  /** Zero-Cost Events, Deferred, and Future Event from plyrProj.
    * @param fromPrj set to true to include Deferred/Future Event
   */
   isDiscardActivated(fromPrj: boolean = false): boolean {
     // not Activated if moveRipple from auctionTN; must be click or drag setting this.origSlot
     return (this.type == "Event") ? this.cost == 0
-    : (this.type == "Deferred") ? fromPrj 
+    : (this.type == "Deferred") ? fromPrj
     : (this.type == "Future Event") ? fromPrj
     : false;
   }
 
   /**
-   * return bonus due to owner for a step on this Card. 
+   * return bonus due to owner for a step on this Card.
    * @param bonusAry may supply array to get more/less credit... (length > TP.bonusNcards)
-   * @returns 
+   * @returns
    */
   getFranchiseBonus(bonusAry = TP.stdBonusAry): number {
     let card = this, owner = card.owner, subtype = card.subtype, mainMap = this.table.mainMap
@@ -565,7 +565,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     let nsubt = Math.min(TP.bonusNcards, bonusTiles.length)
     let bonus = bonusAry[nsubt]
     bonusTiles.forEach(c => (nsubt >= TP.bonusNcards) ? c.makeBonusMark() : c.removeBonusMark())
-    return bonus  
+    return bonus
   }
   makeCounter(name: string, initVal: number | string = "0", offx = 0, offy = 0, color: string = "lightgrey", fontSize: number = 38): ValueCounter {
     let card = this
@@ -658,7 +658,7 @@ export class Flag extends Card {
     this.y = Flag.offy
     return
   }
-  /** 
+  /**
    * set owner Flag on the target Card.
    * @param ownerCard full-size Owner card to shrink
    * @param targetCard attach the generated Flag to this Card
@@ -667,7 +667,7 @@ export class Flag extends Card {
    */
   static attachFlagToCard(ownerCard: Card, targetCard: Card, scale?: number): Flag {
     if (!!targetCard.ownerFlag) Flag.removeOwnerFlag(targetCard) // only 1 Flag per card!
-    
+
     let flag = new Flag(ownerCard, scale) // new copy of ownerFlag
     if (targetCard instanceof Flag) {
       flag.scaleX = .6     // inner Flag is smaller
@@ -679,7 +679,7 @@ export class Flag extends Card {
     targetCard.stage.update()
     return flag;
   }
-  
+
   /** remove the ownerFlag from Card */
   static removeOwnerFlag(card: Card): Flag {
     let rem = card.removeChild(card.ownerFlag)
@@ -703,7 +703,7 @@ export class HouseToken extends Card {
   override useDropAt: boolean = true; // true if card.allowDropAt() is meaningful
   /** a HouseToken can drop in its origSlot (on srcCont) or on mainMap on a player's S.Housing tile */
   override allowDropAt(dstCont: CardContainer, row: number, col: number):boolean {
-    // ASSERT: (this.type == S.house), srcCont is likely Table.mktHouse 
+    // ASSERT: (this.type == S.house), srcCont is likely Table.mktHouse
     if (!!this.origSlot && dstCont == this.origSlot.cont) {
       let stk0 = dstCont.getStack(row, col)[0]
       if (dstCont.name == "mainMap" && (!stk0 || stk0.name != S.Housing)) {
@@ -721,7 +721,7 @@ export class HouseToken extends Card {
     let card = stack[0]
     if (card.name != S.Housing) return false  // card at {row, col} is not S.Housing
     // Hmm: cannot put HouseToken on S.Housing that is VCPlayer owned!
-    // S.Housing mortgage is 1 or 2; so pay that off first 
+    // S.Housing mortgage is 1 or 2; so pay that off first
     // (although building a house would pay it off faster)
     if (!(TP.allowHouseOnVC ? card.table.curPlayer.isReallyOwner(card) : card.table.curPlayer == card.owner)) return false
     // do not drop a new house if it would displace a larger house:
@@ -753,7 +753,7 @@ export class HouseToken extends Card {
     while (--ndx >= 0) {
       let rcard = mkt.bottomCardOfStack(ndx) // see if there's a rcard in the mkt
       if (rcard) {
-        cont.addCard(rcard, row, col)   // should not affect limitHousing, nor fixHousingStack 
+        cont.addCard(rcard, row, col)   // should not affect limitHousing, nor fixHousingStack
         break
       }
     }
