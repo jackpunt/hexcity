@@ -151,6 +151,11 @@ export class RectShape extends PaintableShape {
   static rectWHXY(w: number, h: number, x = -w / 2, y = -h / 2, g0 = new Graphics()) {
     return g0.dr(x, y, w, h)
   }
+
+  static rectWHXYr(w: number, h: number, x = -w / 2, y = -h / 2, r = 0, g0 = new Graphics()) {
+    return g0.rr(x, y, w, h, r);
+  }
+
   /** draw rectangle suitable for given Text; with border, textAlign. */
   static rectText(t: Text | string, fs?: number, b?: number, align = (t instanceof Text) ? t.textAlign : 'center', g0 = new Graphics()) {
     const txt = (t instanceof Text) ? t : new CenterText(t, fs ?? 30);
@@ -163,14 +168,21 @@ export class RectShape extends PaintableShape {
     return RectShape.rectWHXY(w, h, -x, -h / 2, g0);
   }
 
-  g0: Graphics;
+  g0: Graphics | undefined;
   rect: XYWH;
-  constructor({ x = 0, y = 0, w = 30, h = 30 }: XYWH, public fillc = C.white, public strokec = C.black, g0?: Graphics) {
-    super((fillc) => this.rscgf(fillc));
-    this.rect = { x, y, w, h }
-    this.g0 = g0?.clone();
+  rc: number = 0;
+  constructor(
+    { x = 0, y = 0, w = 30, h = 30, r = 0 }: XYWH & { r?: number },
+    public fillc = C.white,
+    public strokec = C.black,
+    g0?: Graphics
+  ) {
+    super((fillc) => this.rscgf(fillc as string));
+    this.rect = { x, y, w, h };
+    this.setBounds(x, y, w, h);
+    this.rc = r;
+    this.g0 = g0?.clone() ?? new Graphics();
     this.paint(fillc);
-    // TODO: rounded rectangle!
   }
 
   rscgf(fillc: string) {
@@ -178,10 +190,15 @@ export class RectShape extends PaintableShape {
     const { x, y, w, h } = this.rect;
     (fillc ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
-    g.dr(x ?? 0, y ?? 0, w ?? 30, h ?? 30);
+    if (this.rc === 0) {
+      g.dr(x ?? 0, y ?? 0, w ?? 30, h ?? 30);
+    } else {
+      g.rr(x ?? 0, y ?? 0, w ?? 30, h ?? 30, this.rc);
+    }
     return g;
   }
 }
+
 
 export class TileShape extends HexShape {
   static fillColor = C1.lightgrey_8;// 'rgba(200,200,200,.8)'
