@@ -1,8 +1,9 @@
-import { stime } from '@thegraid/common-lib';
+import { permute, stime } from '@thegraid/common-lib';
 import { Bitmap, Container, DisplayObject, Text } from '@thegraid/easeljs-module';
 import type { DebtContainer } from './Debt';
 import { C, F, S, WH } from './basic-intfs';
 import { CardContainer } from './card-container';
+import { CardInfo, CardType, SubType } from "./card-maker";
 import { loadImage } from './image-loader';
 import { Player } from './player';
 import { Table } from './table';
@@ -47,12 +48,9 @@ export class Stack extends Array<Card> {
     } else {
       super()
     }
-    if (cards instanceof Array) this.pushCards(cards)
+    if (cards instanceof Array) this.push(...cards);
   }
-  /** see also: CardContainer.stackCards(Card[], row, col) */
-  pushCards(cards: Card[]) {
-    cards.forEach(card => this.push(card))
-  }
+
   /**
    * Shuffle all the cards in the given Stacks,
    * returning a single new and newly premuted Stack.
@@ -60,18 +58,10 @@ export class Stack extends Array<Card> {
    * @return concatenated and premuted Stack
    */
   shuffle(...stacks: Card[][]): Stack {
-    let cards = this.concat(...stacks)
-    let newStack: Stack = new Stack(cards);
-
-    // permute the Cards:
-    for (let i = 0, len = newStack.length; i < len; i++) {
-      let tmp: Card = newStack[i];
-      let ndx: number = Math.floor(Math.random() * (len - i)) + i
-      newStack[i] = newStack[ndx]
-      newStack[ndx] = tmp;
-    }
-    return newStack;
+    const cards = this.concat(...stacks);
+    return permute(new Stack(cards)) as Stack;
   }
+
   /** splice card from stack and slotInfo = undefined
    * @param card
    * @param ndx if you know the index of card within stack, bypass a findIndex() call
@@ -153,9 +143,8 @@ export class Stack extends Array<Card> {
   }
 }
 
-
 /** potential components in Card. */
-export interface CardInfo {
+export interface CardInfo0 {
   path: string; // path to image.png
   nreps?: number;
   type?: string;
@@ -183,21 +172,10 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   static assetPath = "/assets/main/images/cards/"
   static cardClassName: string = undefined
   /** specifically "Card", not a subclass like Flag, HouseToken or Debt */
-  isClassCard(): this is Card { return this.constructor.name == Card.cardClassName; }
+  isClassCard(): this is Card { return this.constructor.name === Card.cardClassName; } // === 'Card'
   // CanvasImageSource | String | Object
-  /**  createjs.Bitmap(imageOrUrl: string | Object
-   * | HTMLImageElement | HTMLCanvasElement
-   * | HTMLVideoElement): createjs.Bitmap
-   * @param info a CardInfo or existing Card
-   * @param nrep optional: use info.nreps || 1
-   * @param table optional: but final Card must set .table somewhere
-   */
 
-  constructor(info: CardInfo , nrep?: number, table?: Table) {
-    //super(Card.assetPath + info.path);
-    super() ;
-    // Assert: a Card is created before any Debt, Flag, or HouseToken; TODO better detect super() calls
-    if (!Card.cardClassName) Card.cardClassName = this.constructor.name;  // "Card" or random optimized
+  setBaseImage(info: CardInfo) {
     // Assume that Card has a legitmate bitmap.image by now (because we waited for all promises)
     // if @param info ISA Card, we try to dup the existing Bitmap:
     // with new (1.0.0) createjs, can pass the actual Image to contstructor
@@ -205,6 +183,21 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     // @see Bitmap.js in createjs.js
     this.bitmap = (info instanceof Card) ? new Bitmap(info.bitmap.image) : new Bitmap(Card.assetPath + info.path);
     this.addChild(this.bitmap)
+  }
+
+  /**  createjs.Bitmap(imageOrUrl: string | Object
+   * | HTMLImageElement | HTMLCanvasElement
+   * | HTMLVideoElement): createjs.Bitmap
+   * @param info a CardInfo or existing Card
+   * @param nrep optional: use info.nreps || 1
+   * @param table optional: but final Card must set .table somewhere
+   */
+  constructor(info: CardInfo , nrep?: number, table?: Table) {
+    //super(Card.assetPath + info.path);
+    super() ;
+    // Assert: a Card is created before any Debt, Flag, or HouseToken; TODO better detect super() calls
+    if (!Card.cardClassName) Card.cardClassName = this.constructor.name;  // "Card" or random optimized
+    this.setBaseImage(info);
     let { nreps, type, name, cost, step, stop, rent, vp, path, ext, subtype, text, props = {}, image, imagePromise } = info;
     if (subtype == "Test") {
       let testName = new Text(name, F.fontSpec(32), C.vpWhite)
@@ -230,7 +223,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     this.path = path;
     this.ext = ext;
     this.subtype = subtype;
-    this.text = text;
+    this.text = (typeof text === 'string') ? text : text?.[0]; // "text" | ["text", ...extras]
     this.props = props;
     this.image = image;
     if (this.type == "Back") {
@@ -238,22 +231,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
       this.width = this.costn
       this.height = this.step
     }
-    if (this.image) {
-      this.setRegFromImage(this.image)
-    } else {
-      if (!imagePromise) {
-        let url: string = Card.assetPath + this.path;
-        imagePromise = loadImage(url);
-      }
-      this.imagePromise = imagePromise;
-      // imagePromise may get multiple .then() result invocations
-      this.imagePromise.then(
-        img => {
-          this.image = img; // console.log(stime(this, ".constructor: loaded Image="), img);
-          this.setRegFromImage(this.image)
-        },
-        reason => { console.log(stime(this, ".loadImage failed"), reason, "card:", this) })
-    } // maybe need a .catch(rej) here?
+    this.setRegFromImage(imagePromise);
     //console.log(stime(this, ".constuctor: "), name, this.nreps, this);
   }
 
@@ -278,7 +256,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   // IND:Array<CardInfo> = [{name: "Bar", type: "tile", nreps: 1},{}];
   // CardInfo
   nreps: number;
-  type: string;
+  type: CardType;
   override name: string;
   cost: string | number;
   step: number;
@@ -287,7 +265,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   vp: string | number;
   path: string;
   ext: string | null;
-  subtype: string | null;
+  subtype: SubType | null;
   text: string | null;
   props: object;
   _width: number;     // for "Back" card
@@ -425,10 +403,29 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     if (len > 0 && openRec[len-1].aname == undoName) return
     this.table.addUndoRec(card, undoName, () => card.moveCardUndo(os))
   }
-  setRegFromImage(image: HTMLImageElement) {
-    this.regX = image.width / 2   // offset (up&right) so we can drop card at center of slot
-    this.regY = image.height / 2
-    //this.makeStepRange()
+
+  setRegFromImage(imagePromise: Promise<HTMLImageElement>) {
+    const setRegXY = (image: HTMLImageElement) => {
+      this.regX = image.width / 2   // offset so we can drop card at center of slot; and rotate around center
+      this.regY = image.height / 2
+      //this.makeStepRange()
+    }
+    if (this.image) {
+      setRegXY(this.image)
+    } else {
+      if (!imagePromise) {
+        let url: string = Card.assetPath + this.path;
+        imagePromise = loadImage(url);
+      }
+      this.imagePromise = imagePromise;
+      // imagePromise may get multiple .then() result invocations
+      this.imagePromise.then(
+        img => {
+          this.image = img; // console.log(stime(this, ".constructor: loaded Image="), img);
+          setRegXY(this.image)
+        },
+        reason => { console.log(stime(this, ".loadImage failed"), reason, "card:", this) })
+    } // maybe need a .catch(rej) here?
   }
   getCardInfo(card: Card): CardInfo {
     return {
@@ -614,12 +611,12 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     let offy = this.height / 2 - 35; // up from bottom: - (CARD-TOP-BAND + 10)
     this.vpCounter = this.makeCounter("vpCounter", this.vp as number, offx, offy, color)
   }
-  /** mark Policy & Event with required 'range' (== card.step) */
+  /** mark Policy & Event with 'range' (== card.step) required to purchase (or use?) */
   makeStepRange(color: string = C.white) {
     if (!(this.isPolicy() || this.isEvent())) return
     let offx = this.width / 2 - 33;  // indent left: CARD-EDGE
     let offy = this.height / 2 - 30;  // up from botton: -(CARD-TOP-BAND + 5)
-    this['stepRange'] = this.makeCounter("stepRange", this.step, offx, offy, color) // not a "Counter"
+    this['stepRange'] = this.makeCounter('stepRange', this.step, offx, offy, color) // not a "Counter"
   }
   makeBonusMark(color: string = C.coinGold, text: string | number = '+' ) {
     if (!!this['bonusMark']) return

@@ -11,11 +11,9 @@ export class TokenDeck {
         {nreps: 12, type: "house", name: "Apartments", cost: 8, step: 0, stop: 0, rent: 2, vp: 6, subtype: null, props: {noStop: true}, path: "Apartments.png"},
         {nreps: 12, type: "house", name: "High Rise", cost: 11, step: 0, stop: 0, rent: 4, vp: 10, subtype: null, props: {noStop: true}, path: "High-Rise.png"},
         {nreps: 12, type: "house", name: "Tower", cost: 14, step: 0, stop: 0, rent: 8, vp: 15, subtype: null, props: {noStop: true}, path: "Tower.png"},
-        {nreps: 12, type: "marker", name: "VcOwned-RED", cost: 1, step: 0, stop: 0, rent: 0, path: "VcOwned-RED.png"},
-        {nreps: 12, type: "marker", name: "VcOwned-BLUE", cost: 1, step: 0, stop: 0, rent: 0, path: "VcOwned-BLUE.png"},
-        {nreps: 12, type: "marker", name: "VcOwned-GREEN", cost: 1, step: 0, stop: 0, rent: 0, path: "VcOwned-GREEN.png"},
-        {nreps: 12, type: "marker", name: "NoRent-RED", cost: 1, step: 0, stop: 0, rent: 0, path: "NoRent-RED.png"},
-        {nreps: 12, type: "marker", name: "NoRent-BLUE", cost: 1, step: 0, stop: 0, rent: 0, path: "NoRent-BLUE.png"},
-        {nreps: 12, type: "marker", name: "NoRent-GREEN", cost: 1, step: 0, stop: 0, rent: 0, path: "NoRent-GREEN.png"},
+        {nreps: 24, type: "marker", name: "VcOwned-RED", cost: 1, step: 0, stop: 0, rent: 0, text: null, path: "VcOwned-RED.png"},
+        {nreps: 24, type: "marker", name: "VcOwned-BLUE", cost: 1, step: 0, stop: 0, rent: 0, text: null, path: "VcOwned-BLUE.png"},
+        {nreps: 24, type: "marker", name: "VcOwned-GREEN", cost: 1, step: 0, stop: 0, rent: 0, text: null, path: "VcOwned-GREEN.png"},
+        {nreps: 1, type: "Owner", name: "Owner-WHITE-0", cost: 0, path: "Owner-WHITE-0.png"},
    ]
   }}

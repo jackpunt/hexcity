@@ -4,7 +4,8 @@ import { Container, Stage } from '@thegraid/easeljs-module';
 import { CgMessage, CLOSE_CODE } from '@thegraid/wspbclient';
 import { CmType } from '../proto/CmProto';
 import { S } from './basic-intfs';
-import { Card, CardInfo, Deck, Stack } from './card';
+import { CardInfo } from './card-maker';
+import { Card, Deck, Stack } from './card';
 import { CardContainer } from './card-container';
 import { CardEvent, ValueEvent } from "./card-event";
 import { AlignDeck } from './cardinfo/align-deck';
@@ -125,7 +126,7 @@ export class GameSetup {
       if (!!fieldName) {
         stack = this.table[fieldName] || (this.table[fieldName] = new Stack())
       }
-      stack.pushCards(deck.stack) // stack = stack.shuffle(deck.stack)
+      stack.push(...deck.stack) // stack = stack.shuffle(deck.stack)
     }
     let isLike = (ci: CardInfo, ary: string[]): boolean => {
       return !!ary.find(str => (ci.name == str || ci.type == str || ci.subtype == str || ci.ext == str))

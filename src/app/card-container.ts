@@ -408,7 +408,7 @@ export class CardContainer extends Container {
    */
   stackCards(cards: Card[], row: number = 0, col: number = 0): Stack {
     // stack all the Cards in slot [0][0]
-    cards.concat([]).forEach(card => { // addCard->removeCard: modifies original cards array!
+    cards.concat().forEach(card => { // addCard->removeCard: modifies original cards array!
       if (card.type != "Back") {
         this.addCard(card, row, col) // --> putCardOnStack: remove from prior using slotInfo
       }
