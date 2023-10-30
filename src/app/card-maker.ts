@@ -50,7 +50,7 @@ type yiarg = number | 'center' | 'fit' | 'top';
 // type CI = Container; // may be full Card or likely the container to produce a BitMap image/cache
 
 export interface CardInfo {
-  path: string; // path to image.png
+  path?: string; // path to image.png
   nreps?: number;
   type?: CardType | TokenType;
   name?: string;
@@ -62,8 +62,14 @@ export interface CardInfo {
   vp?: string | number;
   ext?: string | null;
   subtype?: SubType | null;
-  text?: string | [string, ...any[]] | null;
-  textLow?: string | null;
+  text?: string | [string, ...any[]] | null | object;
+  bgcolor?: string;
+  portrait?: boolean;
+  ty?: number;
+  by?: number;
+  color?: string | null;
+  textLow?: string | null | object;
+  extras?: object;
   ispec?: [name?: string, x?: xiarg, y?: yiarg, w?: number, h?: number | 'xs'];
   props?: object;
   image?: HTMLImageElement;
