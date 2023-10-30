@@ -64,17 +64,17 @@ export interface CardInfo {
   text?: string | [string, ...any[]] | null | object;
   textLow?: string | null | object;
   ispec?: [name?: string, x?: xiarg, y?: yiarg, w?: number, h?: number | 'xs']; // ~/Google Drive/jpeckj/Estates/images/...
-  props?: object;
+  props?: object;     // cardProps: event/policy/tile script
   // BACK-DECK
   bgcolor?: string;
-  portrait?: boolean; //
-  ty?: number; // top-band (60)
-  by?: number; // bottom-band (60)
+  portrait?: boolean; // rotate before exporting
+  ty?: number;        // top-band (60)
+  by?: number;        // bottom-band (60)
 
-  extras?: object;
-  path?: string; // path to image.png
-  image?: HTMLImageElement;
-  imagePromise?: Promise<HTMLImageElement>
+  extras?: object;    // extracted to textLow, ispec, props, etc.
+  path?: string;      // name of created card image (.png)
+  image?: HTMLImageElement; // loaded card image; from citymap/gimp
+  imagePromise?: Promise<HTMLImageElement> // waiting for image to load from disk
 }
 
 class CI extends Container {
