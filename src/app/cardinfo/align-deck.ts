@@ -5,7 +5,7 @@ export class AlignDeck {
    static deck: Deck = {
       name: 'AlignDeck',
       cards: [
-        {nreps: 1, type: "Alignment", title: "Rotate-R", cost: null, subtype: null, ext: "Roads", props: {align: [ "RR", "RR", "RR", "RR" ], noStop: true}, path: "Rotate-R.png"},
-        {nreps: 1, type: "Alignment", title: "Rotate-L", cost: null, subtype: null, ext: "Roads", props: {align: [ "RL", "RL", "RL", "RL" ], noStop: true}, path: "Rotate-L.png"},
+        {nreps: 1, type: "Alignment", name: "Rotate-R", cost: null, subtype: null, ext: "Base", props: {align: [ "RR", "RR", "RR", "RR" ], noStop: true}, color: "rgb(180,180,180)", path: "Rotate-R.png"},
+        {nreps: 1, type: "Alignment", name: "Rotate-L", cost: null, subtype: null, ext: "Base", props: {align: [ "RL", "RL", "RL", "RL" ], noStop: true}, color: "rgb(180,180,180)", path: "Rotate-L.png"},
    ]
   }}

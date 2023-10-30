@@ -50,28 +50,29 @@ type yiarg = number | 'center' | 'fit' | 'top';
 // type CI = Container; // may be full Card or likely the container to produce a BitMap image/cache
 
 export interface CardInfo {
-  path?: string; // path to image.png
   nreps?: number;
-  type?: CardType | TokenType;
   name?: string;
-  title?: string;
+  type?: CardType | TokenType;
+  subtype?: SubType | null;
+  color?: string | null;
   cost?: string | number;
   step?: number;
   stop?: number;
   rent?: number;
   vp?: string | number;
   ext?: string | null;
-  subtype?: SubType | null;
   text?: string | [string, ...any[]] | null | object;
-  bgcolor?: string;
-  portrait?: boolean;
-  ty?: number;
-  by?: number;
-  color?: string | null;
   textLow?: string | null | object;
-  extras?: object;
-  ispec?: [name?: string, x?: xiarg, y?: yiarg, w?: number, h?: number | 'xs'];
+  ispec?: [name?: string, x?: xiarg, y?: yiarg, w?: number, h?: number | 'xs']; // ~/Google Drive/jpeckj/Estates/images/...
   props?: object;
+  // BACK-DECK
+  bgcolor?: string;
+  portrait?: boolean; //
+  ty?: number; // top-band (60)
+  by?: number; // bottom-band (60)
+
+  extras?: object;
+  path?: string; // path to image.png
   image?: HTMLImageElement;
   imagePromise?: Promise<HTMLImageElement>
 }
