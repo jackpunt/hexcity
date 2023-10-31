@@ -13,8 +13,8 @@ export class C1 {
 }
 
 export class CenterText extends Text {
-  constructor(text?: string, size = TP.hexRad / 2, color?: string) {
-    super(text, F.fontSpec(size), color);
+  constructor(text?: string, spec: number | string = TP.hexRad / 2, color?: string) {
+    super(text, (typeof spec === 'number') ? F.fontSpec(spec) : spec, color);
     this.textAlign = 'center';
     this.textBaseline = 'middle';
   }
@@ -25,40 +25,34 @@ export interface Paintable extends DisplayObject {
   paint(colorn: string, force?: boolean): Graphics;
 }
 
-/** Color Graphics Function */
-export type CGF = (color?: string) => Graphics;
+/** Create/Color Graphics Function (color, g0); extend graphics with additional instructions. */
+export type CGF = (color?: string, g?: Graphics) => Graphics;
 
-export class ColorGraphics extends Graphics {
-
-  static circleShape(rad = 30, fillc0 = C.white, strokec = C.black, g0?: Graphics): CGF {
-    return (fillc = fillc0) => {
-      const g = g0?.clone() ?? new Graphics();
-      (fillc ? g.f(fillc) : g.ef());
-      (strokec ? g.s(strokec) : g.es());
-      g.dc(0, 0, rad);
-      return g;
-    }
-  }
-}
 /**
- * Usage:
+ * Usage: ??? [obsolete?]
  * - ps = super.makeShape(); // ISA PaintableShape
- * - ps.gf = (color) => new CG(color);
+ * - ps.cgf = (color) => new CGF(color);
  * - ...
  * - ps.paint(red); --> ps.graphics = gf(red) --> new CG(red);
  * -
- * - const cgf: CGF = (color: string) => {
- * -     return new Graphics().f(this.color).dc(0, 0, rad);
+ * - const cgf: CGF = (color: string, g = new Graphics()) => {
+ * -     return g.f(this.color).dc(0, 0, rad);
  * -   }
  * - }
  */
 
 export class PaintableShape extends Shape implements Paintable {
+  /**
+   *
+   * @param _cgf Create Graphics Function
+   * @param colorn paint with this color
+   */
   constructor(public _cgf: CGF, public colorn?: string) {
     super();
     this.name = className(this);
   }
   get cgf() { return this._cgf; }
+  /** set new cgf; and clear "previously rendered Graphics" */
   set cgf(cgf: CGF) {
     this._cgf = cgf;
     if (this.cgfGraphics) {
@@ -66,7 +60,7 @@ export class PaintableShape extends Shape implements Paintable {
       this.paint(this.colorn);
     }
   }
-  /** previous/current graphics that were rendered. */
+  /** previous/current Graphics that were rendered. (optimization... paint(color, true) to overrixe) */
   cgfGraphics: Graphics;
   /** render graphics from cgf. */
   paint(colorn: string = this.colorn, force = false): Graphics {
@@ -109,28 +103,29 @@ export class HexShape extends PaintableShape {
    * overrides should include call to setHexBounds(radius, angle)
    * or in other way setBounds().
    */
-  hscgf(color: string) {
-    return this.graphics.f(color).dp(0, 0, Math.floor(this.radius * 59 / 60), 6, 0, this.tilt); // 30 or 0
+  hscgf(color: string, g0 = this.graphics) {
+    return g0.f(color).dp(0, 0, Math.floor(this.radius * 59 / 60), 6, 0, this.tilt); // 30 or 0
   }
 }
 
 
 export class CircleShape extends PaintableShape {
   g0: Graphics;
+  /** retain g0, to use as baseline Graphics for each paint() */
   constructor(public fillc = C.white, public rad = 30, public strokec = C.black, g0?: Graphics) {
     super((fillc) => this.cscgf(fillc));
     this.g0 = g0?.clone();
     this.paint(fillc);
   }
 
-  cscgf(fillc: string) {
-    const g = this.g0 ? this.g0.clone() : new Graphics();
+  cscgf(fillc: string, g = this.g0?.clone() ?? new Graphics()) {
     ((this.fillc = fillc) ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
     g.dc(0, 0, this.rad);  // presumably easlejs can determine Bounds of Circle.
     return g;
   }
 }
+
 export class PolyShape extends PaintableShape {
   g0: Graphics;
   constructor(public nsides = 4, public tilt = 0, public fillc = C.white, public rad = 30, public strokec = C.black, g0?: Graphics) {
@@ -139,8 +134,7 @@ export class PolyShape extends PaintableShape {
     this.paint(fillc);
   }
 
-  pscgf(fillc: string) {
-    const g = this.g0 ? this.g0.clone() : new Graphics();
+  pscgf(fillc: string, g = this.g0?.clone() ?? new Graphics()) {
     ((this.fillc = fillc) ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
     g.dp(0, 0, this.rad, this.nsides, 0, this.tilt * H.degToRadians);
@@ -168,25 +162,24 @@ export class RectShape extends PaintableShape {
     return RectShape.rectWHXY(w, h, -x, -h / 2, g0);
   }
 
-  g0: Graphics | undefined;
+  g0: Graphics;
   rect: XYWH;
   rc: number = 0;
   constructor(
     { x = 0, y = 0, w = 30, h = 30, r = 0 }: XYWH & { r?: number },
     public fillc = C.white,
     public strokec = C.black,
-    g0?: Graphics
+    g0?: Graphics,
   ) {
     super((fillc) => this.rscgf(fillc as string));
     this.rect = { x, y, w, h };
     this.setBounds(x, y, w, h);
     this.rc = r;
     this.g0 = g0?.clone() ?? new Graphics();
-    this.paint(fillc);
+    this.paint(fillc, true); // this.graphics = rscgf(...)
   }
 
-  rscgf(fillc: string) {
-    const g = this.g0 ? this.g0.clone() : new Graphics();
+  rscgf(fillc: string, g = this.g0?.clone() ?? new Graphics()) {
     const { x, y, w, h } = this.rect;
     (fillc ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
@@ -200,6 +193,7 @@ export class RectShape extends PaintableShape {
 }
 
 
+/** from hextowns, with translucent center. */
 export class TileShape extends HexShape {
   static fillColor = C1.lightgrey_8;// 'rgba(200,200,200,.8)'
 
@@ -221,9 +215,9 @@ export class TileShape extends HexShape {
 
   readonly bgColor = C.nameToRgbaString(C.WHITE, .8);
   /** colored HexShape filled with very-lightgrey disk: */
-  tscgf(colorn: string, super_cgf = () => new Graphics()) {
+  tscgf(colorn: string, g0 = this.cgfGraphics?.clone() ?? new Graphics(), super_cgf?: () => Graphics) {
     // HexShape.cgf(rgba(C.WHITE, .8))
-    const g = this.graphics = super_cgf.call(this, this.bgColor); // paint HexShape(White)
+    const g = this.graphics = super_cgf.call(this, this.bgColor) as Graphics; // paint HexShape(White)
     const fillColor = C.nameToRgbaString(colorn, .8);
     this.replaceDisk(fillColor, this.radius * H.sqrt3_2 * (55 / 60));
     return this.graphics = g;
@@ -262,8 +256,8 @@ export class UtilButton extends Container implements Paintable {
     this.addChild(this.shape, this.label);
   }
 
-  ubcsf(color: string) {
-    return RectShape.rectText(this.label.text, this.fontSize, this.fontSize * .3, this.label.textAlign, new Graphics().f(color))
+  ubcsf(color: string, g = new Graphics()) {
+    return RectShape.rectText(this.label.text, this.fontSize, this.fontSize * .3, this.label.textAlign, g.f(color))
   }
 
   paint(color = this.shape.colorn, force = false ) {

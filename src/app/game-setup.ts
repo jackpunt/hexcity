@@ -1,6 +1,7 @@
 import { Params } from '@angular/router';
 import { CycleChoice, Dragole, KeyBinder, makeStage, ParamGUI, ParamItem, stime } from '@thegraid/easeljs-lib';
 import { Container, Stage } from '@thegraid/easeljs-module';
+import { EzPromise } from '@thegraid/ezpromise';
 import { CgMessage, CLOSE_CODE } from '@thegraid/wspbclient';
 import { CmType } from '../proto/CmProto';
 import { S } from './basic-intfs';
@@ -32,6 +33,23 @@ import { LogWriter } from './stream-writer';
 import { Table } from './table';
 import { TP } from './table-params';
 import { ValueCounter } from "./value-counter";
+
+export function imageFromDataURL(dataURL: string, width?: number, height?: number) {
+  const image = new Image(width, height);
+  const rv = new EzPromise<HTMLImageElement>();
+  image.onload = () => rv.fulfill(image);
+  image.src = dataURL;
+  return rv;
+}
+export function imageFromDataURL2(dataURL: string, width?: number, height?: number) {
+  const image = new Image(width, height);
+  const rv = new Promise<HTMLImageElement>((res, rej) => {
+    image.onload = () => res(image);
+  });
+  image.src = dataURL;
+  return rv;
+}
+
 
 export class GameSetup {
   stage: Stage;
@@ -174,9 +192,10 @@ export class GameSetup {
     let tileCards = otherCards.findCards(card => card.isTileStack(), true)
     let policyCards = otherCards.findCards(card => card.isPolicyStack(), true)
     let tileBack: Card, eventBack: Card
-    tileBack = new Card(BackDeck.deck.cards.find((c) => (c.name == "Tile Back")), 1, this.table)
-    eventBack = new Card(BackDeck.deck.cards.find((c) => (c.name == "Event Back")), 1, this.table)
-
+    const backCards = BackDeck.deck.cards;
+    tileBack = new Card(backCards.find((c) => (c.name == "Tile Back")), 1, this.table)
+    eventBack = new Card(backCards.find((c) => (c.name == "Event Back")), 1, this.table)
+    console.log(stime(this, `.startup: Cards loaded`), { tileBack, eventBack, tileCards });
     // put Cards on this.table:
     this.table.tileCards = new Stack([tileBack]).shuffle(tileCards)
     this.table.policyCards = new Stack([eventBack]).shuffle(policyCards)

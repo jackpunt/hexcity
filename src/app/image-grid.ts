@@ -17,7 +17,7 @@ export type GridSpec = {
   cardh?: number,  // 750
   bleed?: number, // 0 or 25
   safe?: number,  // 25
-  radi?: number,  // 37 [1/8 inch]
+  radi?: number,  // 37 [1/8 inch: bleed = 0]
   dpi?: number,   // multiply [x0, y0, delx, dely] to get pixels; default: 1 (already in pixels)
   double?:boolean,
 }
@@ -82,8 +82,9 @@ export class ImageGrid {
 	// (over 1) (bleed 25) (xlim 3600) (ylim 5400))
   static cardSingle_1_75: GridSpec = {
     width: 3600, height: 5400, nrow: 9, ncol: 4, cardw: 800, cardh: 575,
-    x0: 150 + 25 + 2.5 * 150, y0: 100 + 25 + 1.75 * 150, delx: 833, dely: 578.25, bleed: 25, // x0: 550, y0: 387.5
-    radi: 37, safe: 25,
+    // x0: 550, y0: 387.5
+    x0: 150 + 25 + 2.5 * 150, y0: 100 + 25 + 1.75 * 150, delx: 833, dely: 578.25,
+    bleed: 25, radi: 37, safe: 25,
   };
 
   stage!: Stage;

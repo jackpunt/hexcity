@@ -1,4 +1,4 @@
 @font-face {
-  font-family: 'SF Compact Rounded, sans-serif';
-  src: local;
+  font-family: "SF Compact Rounded";
+  src: local("SF Compact Rounded"), local("SF-Compact-Rounded-Regular");
 }

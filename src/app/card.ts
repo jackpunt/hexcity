@@ -3,12 +3,13 @@ import { Bitmap, Container, DisplayObject, Text } from '@thegraid/easeljs-module
 import type { DebtContainer } from './Debt';
 import { C, F, S, WH } from './basic-intfs';
 import { CardContainer } from './card-container';
-import { CardInfo, CardType, SubType } from "./card-maker";
+import { CI, CardInfo, CardMaker, CardType, SubType } from "./card-maker";
 import { loadImage } from './image-loader';
 import { Player } from './player';
 import { Table } from './table';
 import { TP } from './table-params';
 import { ValueCounter } from "./value-counter";
+import { imageFromDataURL, imageFromDataURL2 } from './game-setup';
 
 export interface Deck {
   name: string;
@@ -171,6 +172,9 @@ export interface CardInfo0 {
 export class Card extends Container implements CardInfo, HasSlotInfo {
   static assetPath = "/assets/main/images/cards/"
   static cardClassName: string = undefined
+
+  static cardMaker: CardMaker;
+
   /** specifically "Card", not a subclass like Flag, HouseToken or Debt */
   isClassCard(): this is Card { return this.constructor.name === Card.cardClassName; } // === 'Card'
   // CanvasImageSource | String | Object
@@ -181,8 +185,14 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     // with new (1.0.0) createjs, can pass the actual Image to contstructor
     // if is still a Promise<HTMLImageElement> then need to arrange to find the resulting Image.
     // @see Bitmap.js in createjs.js
-    this.bitmap = (info instanceof Card) ? new Bitmap(info.bitmap.image) : new Bitmap(Card.assetPath + info.path);
-    this.addChild(this.bitmap)
+    // this.bitmap = (info instanceof Card) ? new Bitmap(info.bitmap.image) : new Bitmap(Card.assetPath + info.path);
+    if (!Card.cardMaker) Card.cardMaker = new CardMaker();
+    const ci: CI = Card.cardMaker.makeCardImage(info);
+    this.bitmap = ci.getBitmap();
+    const { x, y, width, height } = this.bitmap.getBounds();
+    const url = ci.getCacheDataURL();
+    this.imagePromise = info.imagePromise = imageFromDataURL2(url, width, height);
+    this.addChild(this.bitmap);
   }
 
   /**  createjs.Bitmap(imageOrUrl: string | Object
@@ -235,6 +245,29 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     //console.log(stime(this, ".constuctor: "), name, this.nreps, this);
   }
 
+  setRegFromImage(imagePromise: Promise<HTMLImageElement>) {
+    const setRegXY = (image: HTMLImageElement) => {
+      this.regX = image.width / 2   // offset so we can drop card at center of slot; and rotate around center
+      this.regY = image.height / 2
+      //this.makeStepRange()
+    }
+    if (this.image) {
+      setRegXY(this.image)
+    } else {
+      if (!imagePromise) {
+        let url: string = Card.assetPath + this.path;
+        imagePromise = loadImage(url);
+      }
+      this.imagePromise = imagePromise;
+      // imagePromise may get multiple .then() result invocations
+      this.imagePromise.then(
+        img => {
+          this.image = img; // console.log(stime(this, ".constructor: loaded Image="), img);
+          setRegXY(this.image)
+        },
+        reason => { console.log(stime(this, ".loadImage failed"), reason, "card:", this) })
+    } // maybe need a .catch(rej) here?
+  }
 
   /** implicit creation of this.width: */
   set width(w: number) { this._width = w }
@@ -404,29 +437,6 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     this.table.addUndoRec(card, undoName, () => card.moveCardUndo(os))
   }
 
-  setRegFromImage(imagePromise: Promise<HTMLImageElement>) {
-    const setRegXY = (image: HTMLImageElement) => {
-      this.regX = image.width / 2   // offset so we can drop card at center of slot; and rotate around center
-      this.regY = image.height / 2
-      //this.makeStepRange()
-    }
-    if (this.image) {
-      setRegXY(this.image)
-    } else {
-      if (!imagePromise) {
-        let url: string = Card.assetPath + this.path;
-        imagePromise = loadImage(url);
-      }
-      this.imagePromise = imagePromise;
-      // imagePromise may get multiple .then() result invocations
-      this.imagePromise.then(
-        img => {
-          this.image = img; // console.log(stime(this, ".constructor: loaded Image="), img);
-          setRegXY(this.image)
-        },
-        reason => { console.log(stime(this, ".loadImage failed"), reason, "card:", this) })
-    } // maybe need a .catch(rej) here?
-  }
   getCardInfo(card: Card): CardInfo {
     return {
       path: card.path,
@@ -455,7 +465,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
    * @param thisArg call donefunc with 'this'
    * @return a Stack of the Cards; stack.imagePromises: Array\<Promise\<HTMLImageElement>>
    */
-  static loadCards(info: Array<CardInfo>, table?: Table, donefunc?:((stack:Stack) => void), thisArg?: any): Stack {
+  static loadCards(info: CardInfo[], table?: Table, donefunc?:((stack:Stack) => void), thisArg?: any): Stack {
     let stack: Stack = new Stack()
     let promises: Array<Promise<HTMLImageElement>> = [];
     //console.log(stime(this, ".loadCards1: stack="), stack, promises)
