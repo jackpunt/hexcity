@@ -120,21 +120,25 @@ class BaseShape extends RectShape {
 /** CardImage (for a Card) based on CardInfo */
 export class CI extends Container {
   baseShape: PaintableShape;
-  constructor(public cm: CardMaker, public cardInfo: CardInfo) {
+  constructor(public cm: CardMaker, public cardInfo: CardInfo, scale = 1.0) {
     super();
+    this.scaleX = this.scaleY = scale;
     this.name = `CI:${cardInfo.name}`;
-    if (!cardInfo.portrait) {
+    if (cardInfo.portrait === undefined) {
       cardInfo.portrait = (!['Event', 'Policy', 'Temp Policy', 'Future Event'].includes(cardInfo.type));
     }
     const p = cardInfo.portrait;
     this.cardw = p ? Math.min(cm.cardh, cm.cardw) : Math.max(cm.cardh, cm.cardw);
     this.cardh = p ? Math.max(cm.cardh, cm.cardw) : Math.min(cm.cardh, cm.cardw);
-    const bleed = 0; // cm.bleed;
+    const bleed = cm.bleed;
     this.makeMaskCanvas(bleed);
     const { x, y, width, height } = this.maskr.getBounds();
     this.setBounds(x, y, width, height);
     this.makeBase(bleed); // includes cache();
-    this.setTitle(this.cardInfo.name);
+    this.setTitle(cardInfo.name);
+    this.setType(cardInfo.type, cardInfo.extras);
+    cardInfo.subtype && this.setType(cardInfo.subtype, {lineno: 1});
+    this.updateCache();
   }
   cardw: number;
   cardh: number;
@@ -229,9 +233,9 @@ export class CardMaker {
   transitColor = 'rgb(180,180,180)';    // very light grey
   comTransitColor = 'rgb(180,120,80)';  // Brown/Grey
 
-  get templ() { return this.gridSpec };
-  get bleed() { return this.templ.bleed }
-  get edge() { return this.templ.bleed + this.templ.safe; };
+  readonly withBleed = false;
+  get bleed() { return this.withBleed ? this.gridSpec.bleed : 0; }
+  get edge() { return this.gridSpec.safe + this.bleed };
   get topBand() { return 115 + this.bleed; }
   get bottomBand() { return 130 + this.bleed; }
 
@@ -259,19 +263,10 @@ export class CardMaker {
   ci: CI;
 
   constructor(public gridSpec: GridSpec = ImageGrid.cardSingle_1_75) {
-    const scale = 1.0; //this.scale;
-    this.cardw = scale * gridSpec.cardw; // 800, includes bleed
-    this.cardh = scale * gridSpec.cardh;
-    this.radi = scale * (gridSpec.radi ?? this.radi);     // corner radius
-    this.safe = scale * (gridSpec.safe ?? this.safe);     // text/image safe edge
-  }
-
-  makeCardImage(cardInfo: CardInfo) {
-    const cardImage = new CI(this, cardInfo);
-    cardImage.setTitle(cardInfo.name);
-    cardImage.setType(cardInfo.type, cardInfo.extras);
-    cardInfo.subtype && cardImage.setType(cardInfo.subtype, {lineno: 1});
-    cardImage.updateCache();
-    return cardImage;
+    const mBleed = 2 * (this.withBleed ? 0 : gridSpec.bleed);
+    this.cardw = gridSpec.cardw - mBleed; // 800, includes bleed
+    this.cardh = gridSpec.cardh - mBleed;
+    this.radi = (gridSpec.radi ?? this.radi) + (this.withBleed ? gridSpec.bleed : 0);     // corner radius
+    this.safe = (gridSpec.safe ?? this.safe);     // text/image safe edge
   }
 }

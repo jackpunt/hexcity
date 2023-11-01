@@ -34,11 +34,9 @@ class DropMark extends Shape implements HasSlotInfo {
   height: number
   constructor(color: string, wh: WH, parent: Container) {
     super()
-    this.graphics.beginFill(color).drawRect(0, 0, wh.width, wh.height)
+    this.graphics.beginFill(color).drawRect(-wh.width/2, -wh.height/2, wh.width, wh.height)
     this.width = wh.width
     this.height = wh.height
-    this.regX = this.width/2    // see: Card.setRegFromImage
-    this.regY = this.height/2
     this[S.Aname] = parent.name
     this['Myid'] = this.id
     this['Parid'] = parent.id
@@ -482,8 +480,8 @@ export class CardContainer extends Container {
    */
   setSlotSize(card: Card | WH) {
     this.cardSize = {
-      width:  (card.width  || this.defCardSize.width),
-      height: (card.height || this.defCardSize.height)
+      width:  (card.width  ?? this.defCardSize.width),
+      height: (card.height ?? this.defCardSize.height)
     }
     this.slotSize = {
       width:  this.cardSize.width  + this.marginSize.width,

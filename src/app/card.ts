@@ -9,7 +9,6 @@ import { Player } from './player';
 import { Table } from './table';
 import { TP } from './table-params';
 import { ValueCounter } from "./value-counter";
-import { imageFromDataURL, imageFromDataURL2 } from './game-setup';
 
 export interface Deck {
   name: string;
@@ -179,7 +178,11 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   isClassCard(): this is Card { return this.constructor.name === Card.cardClassName; } // === 'Card'
   // CanvasImageSource | String | Object
 
-  setBaseImage(info: CardInfo) {
+  /** set this.bitmap so it displays the correct image of this Card.
+   *
+   * originally load a saved image; now: CI is a container of Shapes & Text.
+   */
+  setBaseImage(info: CardInfo, scale = 1.0) {
     // Assume that Card has a legitmate bitmap.image by now (because we waited for all promises)
     // if @param info ISA Card, we try to dup the existing Bitmap:
     // with new (1.0.0) createjs, can pass the actual Image to contstructor
@@ -187,12 +190,34 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     // @see Bitmap.js in createjs.js
     // this.bitmap = (info instanceof Card) ? new Bitmap(info.bitmap.image) : new Bitmap(Card.assetPath + info.path);
     if (!Card.cardMaker) Card.cardMaker = new CardMaker();
-    const ci: CI = Card.cardMaker.makeCardImage(info);
-    this.bitmap = ci.getBitmap();
-    const { x, y, width, height } = this.bitmap.getBounds();
-    const url = ci.getCacheDataURL();
-    this.imagePromise = info.imagePromise = imageFromDataURL2(url, width, height);
-    this.addChild(this.bitmap);
+    const ci: CI = new CI(Card.cardMaker, info, scale);
+    const { x, y, width, height } = ci.getBounds();
+    this.width = width * scale; this.height = height * scale;
+    const image = this.image = new Image(this.width, this.height); // fake image to carry(w,h)
+    const cacheImage = true; // cacheImage takes 3 times longer (to render from dataURL)
+    if (cacheImage) {
+      // set this.image (with width & height) so setSlotSizeFromSource will work.
+      // but then, setRegXY() will not do anything; so we do it here.
+      const parent = new Container();
+      parent.scaleX = parent.scaleY = scale;
+      parent.addChild(ci);
+      parent.cache(x * scale, y * scale, width * scale, height * scale);
+      this.bitmap = new Bitmap(parent.cacheCanvas); //ci.getBitmap();
+      const prom = new Promise<HTMLImageElement>((res) => {
+        image.onload = () => res(image);
+      });
+      image.src = parent.getCacheDataURL();
+      this.imagePromise = info.imagePromise = prom;
+      this.addChild(this.bitmap);
+      this.bitmap.x -= this.width / 2;
+      this.bitmap.y -= this.height / 2;
+    } else {
+      this.bitmap = ci;  // CI is already centered around (0, 0)! so drag will not be offset!
+      const prom = new Promise<HTMLImageElement>((res) => { res(image) })
+      this.imagePromise = info.imagePromise = prom;
+      this.addChild(this.bitmap);
+      this.cache(x * scale, y * scale, width * scale, height * scale);
+    }
   }
 
   /**  createjs.Bitmap(imageOrUrl: string | Object
@@ -207,7 +232,8 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     super() ;
     // Assert: a Card is created before any Debt, Flag, or HouseToken; TODO better detect super() calls
     if (!Card.cardClassName) Card.cardClassName = this.constructor.name;  // "Card" or random optimized
-    this.setBaseImage(info);
+    const scale = .5;
+    this.setBaseImage(info, scale);
     let { nreps, type, name, cost, step, stop, rent, vp, path, ext, subtype, text, props = {}, image, imagePromise } = info;
     if (subtype == "Test") {
       let testName = new Text(name, F.fontSpec(32), C.vpWhite)
@@ -216,6 +242,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
       testName.x = 50
     }
 
+    // Record the semantic info, from CardInfo into this Card:
     /** return 0 or val or props[val] NOT undefined... */
     let valProp = (val:number|string, props:object, key:string):number => {
       return (((typeof val) === "number") ? val : (props ? props[key] || 0 : 0)) as number;
@@ -235,38 +262,13 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     this.subtype = subtype;
     this.text = (typeof text === 'string') ? text : text?.[0]; // "text" | ["text", ...extras]
     this.props = props;
-    this.image = image;
+    this.image = this.image ?? image; // retain image injected by setBaseImage()
     if (this.type == "Back") {
       //console.log(stime(this, ".constructor: Back info="), info);
       this.width = this.costn
       this.height = this.step
     }
-    this.setRegFromImage(imagePromise);
     //console.log(stime(this, ".constuctor: "), name, this.nreps, this);
-  }
-
-  setRegFromImage(imagePromise: Promise<HTMLImageElement>) {
-    const setRegXY = (image: HTMLImageElement) => {
-      this.regX = image.width / 2   // offset so we can drop card at center of slot; and rotate around center
-      this.regY = image.height / 2
-      //this.makeStepRange()
-    }
-    if (this.image) {
-      setRegXY(this.image)
-    } else {
-      if (!imagePromise) {
-        let url: string = Card.assetPath + this.path;
-        imagePromise = loadImage(url);
-      }
-      this.imagePromise = imagePromise;
-      // imagePromise may get multiple .then() result invocations
-      this.imagePromise.then(
-        img => {
-          this.image = img; // console.log(stime(this, ".constructor: loaded Image="), img);
-          setRegXY(this.image)
-        },
-        reason => { console.log(stime(this, ".loadImage failed"), reason, "card:", this) })
-    } // maybe need a .catch(rej) here?
   }
 
   /** implicit creation of this.width: */
@@ -303,7 +305,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   props: object;
   _width: number;     // for "Back" card
   _height: number;
-  bitmap: Bitmap;
+  bitmap: DisplayObject;
   image: HTMLImageElement; // or maybe createjs.Bitmap
   imagePromise: Promise<HTMLImageElement>;
   getImagePromise() { return this.imagePromise; }
