@@ -51,13 +51,13 @@ export class PaintableShape extends Shape implements Paintable {
     super();
     this.name = className(this);
   }
+  updateCacheInPaint = true;      // except for unusual cases
   get cgf() { return this._cgf; }
   /** set new cgf; and clear "previously rendered Graphics" */
   set cgf(cgf: CGF) {
     this._cgf = cgf;
     if (this.cgfGraphics) {
-      this.cgfGraphics = undefined;
-      this.paint(this.colorn);
+      this.paint(this.colorn, true);
     }
   }
   /** previous/current Graphics that were rendered. (optimization... paint(color, true) to overrixe) */
@@ -72,7 +72,6 @@ export class PaintableShape extends Shape implements Paintable {
     }
     return this.graphics;
   }
-  updateCacheInPaint = true;
 }
 
 /**
@@ -162,7 +161,7 @@ export class RectShape extends PaintableShape {
     return RectShape.rectWHXY(w, h, -x, -h / 2, g0);
   }
 
-  g0: Graphics;
+  g0: Graphics;    // cgf prepends g0 generate to this.Graphics.
   rect: XYWH;
   rc: number = 0;
   constructor(

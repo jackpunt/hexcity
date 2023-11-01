@@ -93,30 +93,6 @@ export interface CardInfo {
   imagePromise?: Promise<HTMLImageElement> // waiting for image to load from disk
 }
 
-/** basic card shape, with top*bottom bands of color */
-class BaseShape extends RectShape {
-  maskg: Graphics;
-  constructor(w: number, h: number, color: string, ty: number, tcolor: string, by: number, bcolor: string, radi = 37) {
-    super({x: 0, y: 0, w, h, r: radi}); // fillc: WHITE, strokec: BLACK
-    // implicit paint() --> this.graphics = dr(...);
-    this.maskg = this.graphics.clone();      // basic card shape.
-    this.graphics.dr(w, h, -w/2, -h/2).f(bcolor).dr(w, ty, -w / 2, ty / 2); // top & bottom bands
-    this.recache();
-  }
-  /** update cache, crop to maskr */
-  recache(): void {
-    if (!this.cacheID) {
-      const { x, y, width, height } = this.getBounds();
-      this.cache(x, y, width, height);
-    }
-    this.paint(this.colorn, true); // set this.graphics
-    const g0 = this.graphics;      // save
-    this.updateCache();
-    this.graphics = this.maskg;
-    this.updateCache("destination-in"); // keep existing where overlaps with maskg;
-  }
-}
-
 /** CardImage (for a Card) based on CardInfo */
 export class CI extends Container {
   baseShape: PaintableShape;
@@ -124,29 +100,26 @@ export class CI extends Container {
     super();
     this.scaleX = this.scaleY = scale;
     this.name = `CI:${cardInfo.name}`;
-    if (cardInfo.portrait === undefined) {
-      cardInfo.portrait = (!['Event', 'Policy', 'Temp Policy', 'Future Event'].includes(cardInfo.type));
-    }
-    const p = cardInfo.portrait;
-    this.cardw = p ? Math.min(cm.cardh, cm.cardw) : Math.max(cm.cardh, cm.cardw);
-    this.cardh = p ? Math.max(cm.cardh, cm.cardw) : Math.min(cm.cardh, cm.cardw);
+    this.setPortrait(cardInfo, cm);
     const bleed = cm.bleed;
     this.makeMaskCanvas(bleed);
-    const { x, y, width, height } = this.maskr.getBounds();
-    this.setBounds(x, y, width, height);
-    this.makeBase(bleed); // includes cache();
+    this.makeBase(); // includes cache();
     this.setTitle(cardInfo.name);
     this.setType(cardInfo.type, cardInfo.extras);
     cardInfo.subtype && this.setType(cardInfo.subtype, {lineno: 1});
     this.updateCache();
   }
+
   cardw: number;
   cardh: number;
-
-  // override updateCache(compositeOperation?: string): void {
-  //   this.makeMaskCanvas();
-  //   super.updateCache(compositeOperation);
-  // }
+  setPortrait(cardInfo = this.cardInfo, cm = this.cm) {
+    if (cardInfo.portrait === undefined) {
+      cardInfo.portrait = (!['Event', 'Policy', 'Temp Policy', 'Future Event', 'Deferred'].includes(cardInfo.type));
+    }
+    const p = cardInfo.portrait;
+    this.cardw = p ? Math.min(cm.cardh, cm.cardw) : Math.max(cm.cardh, cm.cardw);
+    this.cardh = p ? Math.max(cm.cardh, cm.cardw) : Math.min(cm.cardh, cm.cardw);
+  }
 
   getBitmap() {
     return new Bitmap(this.cacheCanvas);
@@ -210,18 +183,20 @@ export class CI extends Container {
     const maskr = this.maskr = new RectShape({ x, y, w, h, r: r + bleed }, C.BLACK, ''); // with setBounds()
     maskr.cache(x, y, w, h, scale);
     this.maskCanvas = maskr.cacheCanvas as HTMLCanvasElement;
+    this.setBounds(x, y, w, h);
   }
   get ty() { return this.cardInfo.ty ?? (115 + this.cm.bleed) }
   get by() { return this.cardInfo.by ?? (130 + this.cm.bleed) }
 
   // card-make-image-background (ty, by, color)
-  makeBase(bleed = this.cm.bleed) {
+  makeBase() {
+    const color = this.cardInfo.color ?? 'pink';
     const { x, y, width: w, height: h } = this.getBounds();
     this.baseShape = new RectShape({ x, y, w, h });
     const ty = this.ty; // default top-band
     const by = this.by;
-    const tband = new RectShape({ x, y: - h / 2, w, h: ty }, C.BROWN);
-    const bband = new RectShape({ x, y: h / 2 - by, w, h: by }, C.GREEN);
+    const tband = new RectShape({ x, y: - h / 2, w, h: ty }, color);
+    const bband = new RectShape({ x, y: h / 2 - by, w, h: by }, color);
     this.filters = [ new AlphaMaskFilter(this.maskCanvas)]; // implicit "destination-in"
     this.addChild(this.baseShape, tband, bband);
     this.cache(x, y, w, h);

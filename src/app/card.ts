@@ -194,7 +194,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     const { x, y, width, height } = ci.getBounds();
     this.width = width * scale; this.height = height * scale;
     const image = this.image = new Image(this.width, this.height); // fake image to carry(w,h)
-    const cacheImage = true; // cacheImage takes 3 times longer (to render from dataURL)
+    const cacheImage = false; // cacheImage takes 3 times longer (to render from dataURL)
     if (cacheImage) {
       // set this.image (with width & height) so setSlotSizeFromSource will work.
       // but then, setRegXY() will not do anything; so we do it here.
@@ -216,7 +216,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
       const prom = new Promise<HTMLImageElement>((res) => { res(image) })
       this.imagePromise = info.imagePromise = prom;
       this.addChild(this.bitmap);
-      this.cache(x * scale, y * scale, width * scale, height * scale);
+      // this.cache(x * scale, y * scale, width * scale, height * scale);
     }
   }
 
@@ -234,7 +234,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     if (!Card.cardClassName) Card.cardClassName = this.constructor.name;  // "Card" or random optimized
     const scale = .5;
     this.setBaseImage(info, scale);
-    let { nreps, type, name, cost, step, stop, rent, vp, path, ext, subtype, text, props = {}, image, imagePromise } = info;
+    let { nreps, type, name, color, cost, step, stop, rent, vp, path, ext, subtype, text, props = {}, image, imagePromise } = info;
     if (subtype == "Test") {
       let testName = new Text(name, F.fontSpec(32), C.vpWhite)
       this.addChild(testName)
@@ -251,6 +251,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     this.nreps = nrep || nreps || 1;
     this.table = table // may be undefined for proto-Cards, when nreps > 1
     this.type = type;
+    this.color = color;
     this.name = this[S.Aname] = name;
     this.cost = valProp(cost, props, "cost");
     this.step = valProp(step, props, "step");
@@ -292,6 +293,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   // CardInfo
   nreps: number;
   type: CardType;
+  color: string;
   override name: string;
   cost: string | number;
   step: number;
