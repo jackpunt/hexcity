@@ -19,7 +19,7 @@ import { CenterText, PaintableShape, RectShape } from "./shapes";
 // (define GREEN2 `(4 201 0))		; GREEN for HouseTokens
 
 type BASELINE = "top" | "hanging" | "middle" | "alphabetic" | "ideographic" | "bottom";
-type TWEAKS = { font?: string, color?: string, bold?: boolean, dx?: number, dy?: number, baseline?: BASELINE };
+type TWEAKS = { font?: string, lineno?: number, color?: string, bold?: boolean, dx?: number, dy?: number, baseline?: BASELINE };
 const TokenTypes = [
   'Debt',
   'house',
@@ -96,23 +96,24 @@ export interface CardInfo {
 /** CardImage (for a Card) based on CardInfo */
 export class CI extends Container {
   baseShape: PaintableShape;
-  constructor(public cm: CardMaker, public cardInfo: CardInfo, scale = 1.0) {
+  constructor(public cm: CardMaker, public cardInfo: CardInfo, scale = cm.scale) {
     super();
     this.scaleX = this.scaleY = scale;
+
     this.name = `CI:${cardInfo.name}`;
-    this.setPortrait(cardInfo, cm);
+    this.setWidthHeight(cardInfo, cm);
     const bleed = cm.bleed;
     this.makeMaskCanvas(bleed);
     this.makeBase(); // includes cache();
     this.setTitle(cardInfo.name);
     this.setType(cardInfo.type, cardInfo.extras);
-    cardInfo.subtype && this.setType(cardInfo.subtype, {lineno: 1});
+    this.setSubType(cardInfo.subtype, { lineno: 1 });
     this.updateCache();
   }
 
   cardw: number;
   cardh: number;
-  setPortrait(cardInfo = this.cardInfo, cm = this.cm) {
+  setWidthHeight(cardInfo = this.cardInfo, cm = this.cm) {
     if (cardInfo.portrait === undefined) {
       cardInfo.portrait = (!['Event', 'Policy', 'Temp Policy', 'Future Event', 'Deferred'].includes(cardInfo.type));
     }
@@ -126,7 +127,8 @@ export class CI extends Container {
   }
 
   shrinkFontForWidth(xwide: number, text: string, size: number, fontn: string,  ) {
-    const width = new Text(text, F.fontSpec(size, fontn)).getMeasuredWidth();
+    const fonts = `${F.fontSpec(size, fontn)}`
+    const width = new Text(text, fonts).getMeasuredWidth();
     return (width <= xwide) ? size : Math.floor(size * xwide / width);
   }
 
@@ -159,10 +161,13 @@ export class CI extends Container {
     const xwide = this.cardw - (2 * this.cm.edge) - this.cm.coinSize * (1.84 / .84) // 2.1904
     const text = this.makeText(type, this.cm.typeSize, this.cm.typeFont, color, xwide);
     const lineh = text.getMeasuredLineHeight();
-    const offset = tweaks?.lineno ? tweaks.lineno * lineh : 0;
-    this.setText(text, undefined, undefined, { ...tweaks });
+    const offset = (tweaks?.lineno ? tweaks.lineno * lineh : 0);
+    this.setText(text, undefined, undefined, { baseline: 'bottom', ...tweaks });
     text.y += this.cardh / 2 - (this.cm.bottomBand / 2) + offset;
-    return text;
+  }
+
+  setSubType(type: string, tweaks?:  { lineno?: number, color?: string }) {
+    if (type) this.setType(type, tweaks);
   }
 
   setCacheID() {
@@ -176,30 +181,62 @@ export class CI extends Container {
 
   maskr: RectShape;
   maskCanvas: HTMLCanvasElement;
-  makeMaskCanvas(bleed = this.cm.bleed, scale = 1) {
-    const p = this.cardInfo.portrait;
-    let { w, h, r } = { w: this.cardw, h: this.cardh, r: this.cm.radi };
+  /** RoundedRect for CardImage boundary. */
+  makeMaskCanvas(bleed = this.cm.bleed, r = this.cm.radi, scale = 1) {
+    let { w, h } = { w: this.cardw, h: this.cardh };
     const { x, y } = { x: -w / 2, y: -h / 2 };
     const maskr = this.maskr = new RectShape({ x, y, w, h, r: r + bleed }, C.BLACK, ''); // with setBounds()
     maskr.cache(x, y, w, h, scale);
     this.maskCanvas = maskr.cacheCanvas as HTMLCanvasElement;
     this.setBounds(x, y, w, h);
   }
-  get ty() { return this.cardInfo.ty ?? (115 + this.cm.bleed) }
-  get by() { return this.cardInfo.by ?? (130 + this.cm.bleed) }
+  get ty() { return this.cardInfo.ty ?? this.cm.topBand }
+  get by() { return this.cardInfo.by ?? this.cm.bottomBand }
 
   // card-make-image-background (ty, by, color)
   makeBase() {
     const color = this.cardInfo.color ?? 'pink';
     const { x, y, width: w, height: h } = this.getBounds();
-    this.baseShape = new RectShape({ x, y, w, h });
+    this.baseShape = new RectShape({ x, y, w, h }, undefined, '');
     const ty = this.ty; // default top-band
     const by = this.by;
-    const tband = new RectShape({ x, y: - h / 2, w, h: ty }, color);
-    const bband = new RectShape({ x, y: h / 2 - by, w, h: by }, color);
+    const tband = new RectShape({ x, y: - h / 2, w, h: ty }, color, '');
+    const bband = new RectShape({ x, y: h / 2 - by, w, h: by }, color, '');
     this.filters = [ new AlphaMaskFilter(this.maskCanvas)]; // implicit "destination-in"
     this.addChild(this.baseShape, tband, bband);
     this.cache(x, y, w, h);
+  }
+}
+class CI_Tile extends CI {
+
+}
+class CI_Event extends CI {
+
+}
+class CI_Road extends CI {
+
+}
+class CI_Home extends CI {
+
+}
+class CI_Move extends CI {
+
+}
+class CI_Dir extends CI {
+
+}
+class CI_Token extends CI {
+
+  override setWidthHeight(cardInfo?: CardInfo, cm?: CardMaker): void {
+    this.cardw = this.cardh = cm.circle_image_size;
+  }
+  override makeMaskCanvas(bleed?: number, r?: number, scale?: number): void {
+    super.makeMaskCanvas(bleed, this.cm.circle_image_size / 2, scale);
+  }
+
+  override setType(type: string, tweaks?: TWEAKS) {
+    const st = this.cardInfo.subtype;
+    return;
   }
 }
 
@@ -208,6 +245,9 @@ export class CardMaker {
   transitColor = 'rgb(180,180,180)';    // very light grey
   comTransitColor = 'rgb(180,120,80)';  // Brown/Grey
 
+  circle_image_size = 125;
+  square_image_size = 115;
+
   readonly withBleed = false;
   get bleed() { return this.withBleed ? this.gridSpec.bleed : 0; }
   get edge() { return this.gridSpec.safe + this.bleed };
@@ -215,11 +255,12 @@ export class CardMaker {
   get bottomBand() { return 130 + this.bleed; }
 
   textFont = '"Times New Roman"';
-  titleFont = 'SF Compact Rounded Medium';
-  typeFont = 'SF Compact Rounded Medium';
-  coinFont = 'SF Compact Rounded Medium';
-  vpFont = 'SF Compact Rounded Medium';    // font-weight: 557
-  dirFont = 'SF Compact Rounded Semibold'; // font-weight: 659
+  sfFont = 'SF Compact Rounded';
+  titleFont = `${this.sfFont}`;
+  typeFont = `${this.sfFont}`;
+  coinFont = `${this.sfFont}`;
+  vpFont = `${this.sfFont}`;    // font-weight: 557
+  dirFont = `${this.sfFont} Semibold`; // font-weight: 659
 
   titleSize = 60;
   textSize = 50;
@@ -237,11 +278,55 @@ export class CardMaker {
   fileDir = 'citymap';
   ci: CI;
 
-  constructor(public gridSpec: GridSpec = ImageGrid.cardSingle_1_75) {
+  constructor(public gridSpec: GridSpec = ImageGrid.cardSingle_1_75, public scale = 1) {
     const mBleed = 2 * (this.withBleed ? 0 : gridSpec.bleed);
     this.cardw = gridSpec.cardw - mBleed; // 800, includes bleed
     this.cardh = gridSpec.cardh - mBleed;
     this.radi = (gridSpec.radi ?? this.radi) + (this.withBleed ? gridSpec.bleed : 0);     // corner radius
     this.safe = (gridSpec.safe ?? this.safe);     // text/image safe edge
+  }
+  makeCard(info: CardInfo) {
+    const type: CardType = info.type;
+    switch (info.type) {
+      case 'Residential':
+      case 'Financial':
+      case 'Industrial':
+      case 'Commercial':
+      case 'Municipal':
+      case 'Government':
+      case 'High Tech':
+          return new CI_Tile(this, info);
+
+      case 'Event':
+      case 'Future Event':
+      case 'Deferred':
+      case 'Temp Policy':
+      case 'Policy':
+          return new CI_Event(this, info); // landscape Event/Policy
+
+
+      case 'Road':
+          return new CI_Road(this, info);
+
+      case 'House':  // card-type-home
+          return new CI_Home(this, info);
+
+      case 'Owner':  // for Flag
+      case 'Distance':
+        return new CI_Move(this, info);
+
+      // Token-type
+      case 'Debt':
+      case 'house':
+      case 'marker':
+        return new CI_Token(this, info);
+
+      case 'Blocked':
+      case 'Direction':
+      case 'Alignment':
+      case 'Back':
+      default:
+        return new CI(this,info);
+    }
   }
 }

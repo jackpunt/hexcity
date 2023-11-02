@@ -1,1 +1,56 @@
 /* You can add global styles to this file, and also import other style files */
+
+
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("fonts/SF-Compact-Rounded-Thin.otf"), format('otf');
+  font-style: normal;
+  font-weight: 100;
+}
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("fonts/SF-Compact-Rounded-Ultralight.otf"), format('otf');
+  font-style: normal;
+  font-weight: 200;
+}
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("fonts/SF-Compact-Rounded-Light.otf"), format('otf');
+  font-style: normal;
+  font-weight: 300;
+}
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("fonts/SF-Compact-Rounded-Regular.otf"), format('otf');
+  font-style: normal;
+  font-weight: regular; /* 400, normal */
+}
+@font-face {
+  font-family: "SF Compact Rounded Medium";
+  src: url("fonts/SF-Compact-Rounded-Medium.otf"), format('otf');
+  font-style: normal;
+  font-weight: 557;
+}
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("fonts/SF-Compact-Rounded-Semibold.otf"), format('otf');
+  font-style: normal;
+  font-weight: 659;
+}
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("fonts/SF-Compact-Rounded-Bold.otf"), format('otf');
+  font-style: normal;
+  font-weight: bold; /* 700 */
+}
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("fonts/SF-Compact-Rounded-Heavy.otf"), format('otf');
+  font-style: normal;
+  font-weight: 900;
+}
+
+body {
+	font-family: 'SF Compact Rounded Medium', 'Times New Roman', sans-serif; /* make it obvious when @font-face not working */
+	/* font-size: 1.5em; */
+}

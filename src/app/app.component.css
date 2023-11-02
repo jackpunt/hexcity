@@ -1,4 +1,57 @@
 @font-face {
   font-family: "SF Compact Rounded";
-  src: local("SF Compact Rounded"), local("SF-Compact-Rounded-Regular");
+  src: local("SF Compact Rounded Regular"),
+  local("SF-Compact-Rounded-Regular"),
+  local("SFCompact-Rounded-Regular"),
+  url("../fonts/SF-Compact-Rounded-Regular.otf"), format('otf');
+  font-style: normal;
+  font-weight: normal;
+}
+@font-face {
+  font-family: "SF Compact Rounded Thin";
+  src: url("../fonts/SF-Compact-Rounded-Thin.otf"), format('otf');
+  font-style: normal;
+  font-weight: 100;
+}
+@font-face {
+  font-family: "SF Compact Rounded Ultralight";
+  src: url("../fonts/SF-Compact-Rounded-Ultralight.otf"), format('otf');
+  font-style: normal;
+  font-weight: 200;
+}
+@font-face {
+  font-family: "SF Compact Rounded Light";
+  src: url("../fonts/SF-Compact-Rounded-Light.otf"), format('otf');
+  font-style: normal;
+  font-weight: 300;
+}
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("../fonts/SF-Compact-Rounded-Regular.otf"), format('otf');
+  font-style: normal;
+  font-weight: regular; /* 400, normal */
+}
+@font-face {
+  font-family: "SF Compact Rounded Medium";
+  src: url("../fonts/SF-Compact-Rounded-Medium.otf"), format('otf');
+  font-style: normal;
+  font-weight: 557;
+}
+@font-face {
+  font-family: "SF Compact Rounded Semibold";
+  src: url("../fonts/SF-Compact-Rounded-Semibold.otf"), format('otf');
+  font-style: normal;
+  font-weight: 659;
+}
+@font-face {
+  font-family: "SF Compact Rounded Bold";
+  src: url("../fonts/SF-Compact-Rounded-Bold.otf"), format('otf');
+  font-style: normal;
+  font-weight: bold; /* 700 */
+}
+@font-face {
+  font-family: "SF Compact Rounded Heavy";
+  src: url("../fonts/SF-Compact-Rounded-Heavy.otf"), format('otf');
+  font-style: normal;
+  font-weight: 900;
 }

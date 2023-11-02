@@ -189,8 +189,8 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     // if is still a Promise<HTMLImageElement> then need to arrange to find the resulting Image.
     // @see Bitmap.js in createjs.js
     // this.bitmap = (info instanceof Card) ? new Bitmap(info.bitmap.image) : new Bitmap(Card.assetPath + info.path);
-    if (!Card.cardMaker) Card.cardMaker = new CardMaker();
-    const ci: CI = new CI(Card.cardMaker, info, scale);
+    if (!Card.cardMaker) Card.cardMaker = new CardMaker(undefined, .5);
+    const ci: CI = Card.cardMaker.makeCard(info);
     const { x, y, width, height } = ci.getBounds();
     this.width = width * scale; this.height = height * scale;
     const image = this.image = new Image(this.width, this.height); // fake image to carry(w,h)
