@@ -125,9 +125,24 @@ export class CI extends Container {
   getBitmap() {
     return new Bitmap(this.cacheCanvas);
   }
+  // https://stackoverflow.com/questions/64583689/setting-font-weight-on-canvas-text
+  tweakFontString(fontstr: string) {
+    // extract weight info, and move to front of string, along with 'normal' style
+    const regex = / (\d+|thin|light|regular|normal|bold|semibold|heavy)$/i;
+    const match = fontstr.match(regex);
+    const weight = match?.[1];
+    if (weight) {
+      const ndx = match.index;
+      const base = fontstr.slice(0, ndx);
+      fontstr = `normal ${weight} ${base}`; // base = "nnpx SF Compact Rounded"
+    }
+    // const fonts1 = 'normal 900 40px SF Compact Rounded';
+    return fontstr;
+  }
 
   shrinkFontForWidth(xwide: number, text: string, size: number, fontn: string,  ) {
-    const fonts = `${F.fontSpec(size, fontn)}`
+    const fonts0 = F.fontSpec(size, fontn);
+    const fonts = this.tweakFontString(fonts0);
     const width = new Text(text, fonts).getMeasuredWidth();
     return (width <= xwide) ? size : Math.floor(size * xwide / width);
   }
@@ -254,13 +269,13 @@ export class CardMaker {
   get topBand() { return 115 + this.bleed; }
   get bottomBand() { return 130 + this.bleed; }
 
-  textFont = '"Times New Roman"';
-  sfFont = 'SF Compact Rounded';
-  titleFont = `${this.sfFont}`;
+  textFont = 'Times New Roman';
+  sfFont = "'SF Compact Rounded'";
+  titleFont = `${this.sfFont}`;        // when weight is included, it gets tiny!
   typeFont = `${this.sfFont}`;
   coinFont = `${this.sfFont}`;
-  vpFont = `${this.sfFont}`;    // font-weight: 557
-  dirFont = `${this.sfFont} Semibold`; // font-weight: 659
+  vpFont = `${this.sfFont}`;           // Medium font-weight: 557
+  dirFont = `${this.sfFont} Semibold`; // Semibold font-weight: 659
 
   titleSize = 60;
   textSize = 50;

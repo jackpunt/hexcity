@@ -3,54 +3,85 @@
 
 @font-face {
   font-family: "SF Compact Rounded";
-  src: url("fonts/SF-Compact-Rounded-Thin.otf"), format('otf');
+  src: url("fonts/SF-Compact-Rounded-Thin.otf") format('opentype');
   font-style: normal;
   font-weight: 100;
 }
 @font-face {
   font-family: "SF Compact Rounded";
-  src: url("fonts/SF-Compact-Rounded-Ultralight.otf"), format('otf');
+  src: url("fonts/SF-Compact-Rounded-Ultralight.otf") format('opentype');
   font-style: normal;
   font-weight: 200;
 }
 @font-face {
   font-family: "SF Compact Rounded";
-  src: url("fonts/SF-Compact-Rounded-Light.otf"), format('otf');
+  src: url("fonts/SF-Compact-Rounded-Light.otf") format('opentype');
   font-style: normal;
   font-weight: 300;
 }
 @font-face {
   font-family: "SF Compact Rounded";
-  src: url("fonts/SF-Compact-Rounded-Regular.otf"), format('otf');
+  src: url("fonts/SF-Compact-Rounded-Regular.otf") format('opentype');
   font-style: normal;
   font-weight: regular; /* 400, normal */
 }
 @font-face {
-  font-family: "SF Compact Rounded Medium";
-  src: url("fonts/SF-Compact-Rounded-Medium.otf"), format('otf');
+  font-family: "SF Compact Rounded";
+  src: url("fonts/SF-Compact-Rounded-Medium.otf") format('opentype');
   font-style: normal;
   font-weight: 557;
 }
 @font-face {
   font-family: "SF Compact Rounded";
-  src: url("fonts/SF-Compact-Rounded-Semibold.otf"), format('otf');
+  src: url("fonts/SF-Compact-Rounded-Semibold.otf") format('opentype');
   font-style: normal;
   font-weight: 659;
 }
 @font-face {
   font-family: "SF Compact Rounded";
-  src: url("fonts/SF-Compact-Rounded-Bold.otf"), format('otf');
+  src: url("fonts/SF-Compact-Rounded-Bold.otf") format('opentype');
   font-style: normal;
-  font-weight: bold; /* 700 */
+  font-weight: 800; /* 700 */
 }
 @font-face {
   font-family: "SF Compact Rounded";
-  src: url("fonts/SF-Compact-Rounded-Heavy.otf"), format('otf');
+  src: url("fonts/SF-Compact-Rounded-Heavy.otf") format('opentype');
   font-style: normal;
   font-weight: 900;
 }
 
 body {
-	font-family: 'SF Compact Rounded Medium', 'Times New Roman', sans-serif; /* make it obvious when @font-face not working */
-	/* font-size: 1.5em; */
+	font-family: 'SF Compact Rounded', 'Times New Roman', sans-serif; /* make it obvious when @font-face not working */
+	font-size: 18px;
+}
+
+.content {
+  font-weight: 400;
+}
+.f1 {
+  font-weight: 100;
+}
+.f2 {
+  font-weight: 200;
+}
+.f3 {
+  font-weight: 300;
+}
+.f4 {
+  font-weight: 400;
+}
+.f5 {
+  font-weight: 557;
+}
+.f6 {
+  font-weight: 659;
+}
+.f7 {
+  font-weight: 700;
+}
+.f8 {
+  font-weight: 800;
+}
+.f9 {
+  font-weight: 900;
 }
