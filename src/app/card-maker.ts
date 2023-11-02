@@ -268,11 +268,12 @@ export class CardMaker {
 
   textFont = 'Times New Roman 400';
   sfFont = 'SF Compact Rounded';
-  titleFont = `${this.sfFont} 557`;      // Medium font-weight: 557
-  typeFont = `${this.sfFont} 557`;
-  coinFont = `${this.sfFont} 557`;
-  vpFont = `${this.sfFont} 659`;
-  dirFont = `${this.sfFont} 659`; // Semibold font-weight: 659
+  fontFam = 'Nunito';                     // Nunito is variable weight, but less compact
+  titleFont = `${this.fontFam} 600`;      // Medium font-weight: 557
+  typeFont = `${this.fontFam} 557`;
+  coinFont = `${this.fontFam} 557`;
+  vpFont = `${this.fontFam} 659`;
+  dirFont = `${this.fontFam} 659`; // Semibold font-weight: 659
 
   titleSize = 60;
   textSize = 50;

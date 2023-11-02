@@ -1,5 +1,17 @@
 /* You can add global styles to this file, and also import other style files */
+@font-face {
+  font-family: "Nunito";
+  src: url("fonts/Nunito-VariableFont_wght.ttf") format('truetype');
+  font-style: normal;
+  font-weight: 100 1001;
+}
 
+@font-face {
+  font-family: "Nunito Italic";
+  src: url("fonts/Nunito-Italic-VariableFont_wght.ttf") format('truetype');
+  font-style: italic;
+  font-weight: 100 1001;
+}
 
 @font-face {
   font-family: "SF Compact Rounded";
@@ -51,15 +63,19 @@
 }
 
 body {
-	font-family: 'SF Compact Rounded', 'Times New Roman', sans-serif; /* make it obvious when @font-face not working */
+	font-family: 'Nunito', 'Times New Roman', sans-serif; /* make it obvious when @font-face not working */
 	font-size: 18px;
 }
 
 .content {
   font-weight: 400;
 }
-.f1 {
+.fi {
+  font-family: 'Nunito Italic';
   font-weight: 100;
+}
+.f1 {
+  font-weight: 200;
 }
 .f2 {
   font-weight: 200;
@@ -84,4 +100,7 @@ body {
 }
 .f9 {
   font-weight: 900;
+}
+.f10 {
+  font-weight: 1000;
 }
