@@ -126,30 +126,27 @@ export class CI extends Container {
     return new Bitmap(this.cacheCanvas);
   }
   // https://stackoverflow.com/questions/64583689/setting-font-weight-on-canvas-text
-  tweakFontString(fontstr: string) {
-    // extract weight info, and move to front of string, along with 'normal' style
+  composeFontName(fam_wght: string, size: number) {
+    // extract weight info, compose: ${style} ${weight} ${family}
+    const style = 'normal'; // assert: style is not included in original fontstr: 'nnpx family weight'
     const regex = / (\d+|thin|light|regular|normal|bold|semibold|heavy)$/i;
-    const match = fontstr.match(regex);
+    const match = fam_wght.match(regex);
     const weight = match?.[1];
-    if (weight) {
-      const ndx = match.index;
-      const base = fontstr.slice(0, ndx);
-      fontstr = `normal ${weight} ${base}`; // base = "nnpx SF Compact Rounded"
-    }
-    // const fonts1 = 'normal 900 40px SF Compact Rounded';
+    const family = weight ? fam_wght.slice(0, match.index) : fam_wght;
+    const fontstr = `${style} ${weight ?? 410} ${size}px ${family}`;
     return fontstr;
   }
 
   shrinkFontForWidth(xwide: number, text: string, size: number, fontn: string,  ) {
-    const fonts0 = F.fontSpec(size, fontn);
-    const fonts = this.tweakFontString(fonts0);
-    const width = new Text(text, fonts).getMeasuredWidth();
+    const width = new Text(text, fontn).getMeasuredWidth();
     return (width <= xwide) ? size : Math.floor(size * xwide / width);
   }
 
-  makeText(text: string, size: number, fontn = this.cm.textFont, color = C.BLACK, xwide?: number) {
-    const fontsize = xwide ? this.shrinkFontForWidth(xwide, text, size, fontn) : size;
-    return new CenterText(text, F.fontSpec(fontsize, fontn), color);
+  makeText(text: string, size0: number, fam_wght = this.cm.textFont, color = C.BLACK, xwide?: number) {
+    const fontname0 = this.composeFontName(fam_wght, size0);
+    const fontsize = (xwide !== undefined) ? this.shrinkFontForWidth(xwide, text, size0, fontname0) : size0;
+    const fontname = (xwide !== undefined) ? this.composeFontName(fam_wght, fontsize) : fontname0;
+    return new CenterText(text, fontname, color);
   }
 
   setTitle(name: string) {
@@ -269,13 +266,13 @@ export class CardMaker {
   get topBand() { return 115 + this.bleed; }
   get bottomBand() { return 130 + this.bleed; }
 
-  textFont = 'Times New Roman';
-  sfFont = "'SF Compact Rounded'";
-  titleFont = `${this.sfFont}`;        // when weight is included, it gets tiny!
-  typeFont = `${this.sfFont}`;
-  coinFont = `${this.sfFont}`;
-  vpFont = `${this.sfFont}`;           // Medium font-weight: 557
-  dirFont = `${this.sfFont} Semibold`; // Semibold font-weight: 659
+  textFont = 'Times New Roman 400';
+  sfFont = 'SF Compact Rounded';
+  titleFont = `${this.sfFont} 557`;      // Medium font-weight: 557
+  typeFont = `${this.sfFont} 557`;
+  coinFont = `${this.sfFont} 557`;
+  vpFont = `${this.sfFont} 659`;
+  dirFont = `${this.sfFont} 659`; // Semibold font-weight: 659
 
   titleSize = 60;
   textSize = 50;

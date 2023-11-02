@@ -476,11 +476,12 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     stack.imagePromises = promises;
 
     info.forEach((obj: CardInfo, lineno: number) => {
-      let acard = new Card(obj); // build the Bitmap from file. [thanks webpack]
+      const acard = new Card(obj); // build the Bitmap from file. [thanks webpack]
+      const nreps = acard.nreps;
       // likely has .imagePromise
       //console.log(stime(this, ".loadCards2"), acard.nreps, acard.name, acard)
       promises.push(acard.getImagePromise());
-      for (let i: number = 0; i < acard.nreps; i++) {
+      for (let i: number = 0; i < nreps; i++) {
         stack.push(new Card(acard, 1, table)); // copy card, share image, imagePromise
       }
     })
