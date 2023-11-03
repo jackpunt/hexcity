@@ -108,10 +108,11 @@ export class HexShape extends PaintableShape {
 }
 
 
-export class CircleShape extends PaintableShape {
+
+export class EllipseShape extends PaintableShape {
   g0: Graphics;
   /** retain g0, to use as baseline Graphics for each paint() */
-  constructor(public fillc = C.white, public rad = 30, public strokec = C.black, g0?: Graphics) {
+  constructor(public fillc = C.white, public radx = 30, public rady = 30, public strokec = C.black, g0?: Graphics) {
     super((fillc) => this.cscgf(fillc));
     this.g0 = g0?.clone();
     this.paint(fillc);
@@ -120,10 +121,17 @@ export class CircleShape extends PaintableShape {
   cscgf(fillc: string, g = this.g0?.clone() ?? new Graphics()) {
     ((this.fillc = fillc) ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
-    g.dc(0, 0, this.rad);  // presumably easlejs can determine Bounds of Circle.
+    g.de(0, 0, this.radx, this.rady);  // presumably easlejs can determine Bounds of Ellipse
     return g;
   }
 }
+export class CircleShape extends EllipseShape {
+  /** retain g0, to use as baseline Graphics for each paint() */
+  constructor(fillc = C.white, rad = 30, strokec = C.black, g0?: Graphics) {
+    super(fillc, rad, rad, strokec, g0);
+  }
+}
+
 
 export class PolyShape extends PaintableShape {
   g0: Graphics;

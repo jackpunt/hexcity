@@ -1,7 +1,8 @@
 import { C, F } from "@thegraid/common-lib";
 import { AlphaMaskFilter, Bitmap, Container, Graphics, Text } from "@thegraid/easeljs-module";
 import { GridSpec, ImageGrid } from "./image-grid";
-import { CenterText, PaintableShape, RectShape } from "./shapes";
+import { CenterText, CircleShape, EllipseShape, PaintableShape, RectShape } from "./shapes";
+import { NamedObject } from "./game-play";
 
 // (define BLACK  '(0    0   0))
 // (define GREY   '(128 128 128))
@@ -19,7 +20,11 @@ import { CenterText, PaintableShape, RectShape } from "./shapes";
 // (define GREEN2 `(4 201 0))		; GREEN for HouseTokens
 
 type BASELINE = "top" | "hanging" | "middle" | "alphabetic" | "ideographic" | "bottom";
-type TWEAKS = { font?: string, lineno?: number, color?: string, bold?: boolean, dx?: number, dy?: number, baseline?: BASELINE };
+type TWEAKS = {
+  align?: 'left' | 'center' | 'right',
+  font?: string, lineno?: number, color?: string,
+  bold?: boolean, dx?: number, dy?: number, baseline?: BASELINE
+};
 const TokenTypes = [
   'Debt',
   'house',
@@ -65,6 +70,14 @@ type xiarg = number | 'center' | 'fit' | 'card' | 'scale' | 'reg';
 type yiarg = number | 'center' | 'fit' | 'top';
 // type CI = Container; // may be full Card or likely the container to produce a BitMap image/cache
 
+class NamedContainer extends Container implements NamedObject {
+  Aname: string;
+  constructor(name: string, cx = 0, cy = 0) {
+    super();
+    this.Aname = this.name = name;
+    this.x = cx; this.y = cy;
+  }
+}
 export interface CardInfo {
   nreps?: number;
   name?: string;
@@ -108,6 +121,7 @@ export class CI extends Container {
     this.setTitle(cardInfo.name);
     this.setType(cardInfo.type, cardInfo.extras);
     this.setSubType(cardInfo.subtype, { lineno: 1 });
+    this.setText(cardInfo.text)
     this.updateCache();
   }
 
@@ -126,7 +140,7 @@ export class CI extends Container {
     return new Bitmap(this.cacheCanvas);
   }
   // https://stackoverflow.com/questions/64583689/setting-font-weight-on-canvas-text
-  composeFontName(fam_wght: string, size: number) {
+  composeFontName(size: number, fam_wght: string, ) {
     // extract weight info, compose: ${style} ${weight} ${family}
     const style = 'normal'; // assert: style is not included in original fontstr: 'nnpx family weight'
     const regex = / (\d+|thin|light|regular|normal|bold|semibold|heavy)$/i;
@@ -137,49 +151,124 @@ export class CI extends Container {
     return fontstr;
   }
 
-  shrinkFontForWidth(xwide: number, text: string, size: number, fontn: string,  ) {
-    const width = new Text(text, fontn).getMeasuredWidth();
-    return (width <= xwide) ? size : Math.floor(size * xwide / width);
+  shrinkFontForWidth(xwide: number, text: string, fontsize: number, fontspec: string,  ) {
+    const width = new Text(text, fontspec).getMeasuredWidth();
+    return (width <= xwide) ? fontsize : Math.floor(fontsize * xwide / width);
   }
 
+  /** make Text object, optionally shrink to fit xwide. */
   makeText(text: string, size0: number, fam_wght = this.cm.textFont, color = C.BLACK, xwide?: number) {
-    const fontname0 = this.composeFontName(fam_wght, size0);
+    const fontname0 = this.composeFontName(size0, fam_wght);
     const fontsize = (xwide !== undefined) ? this.shrinkFontForWidth(xwide, text, size0, fontname0) : size0;
-    const fontname = (xwide !== undefined) ? this.composeFontName(fam_wght, fontsize) : fontname0;
+    const fontname = (xwide !== undefined) ? this.composeFontName(fontsize, fam_wght) : fontname0;
     return new CenterText(text, fontname, color);
   }
 
+  /** setText [Centered] with Tweaks: { color, dx, dy, lineno, baseline, align} */
+  setTextTweaks(text: string | Text, fontsize: number, fontname: string, tweaks?: TWEAKS) {
+    const { color, dx, dy, lineno, baseline, align } = tweaks ?? {};
+    const text0 = (text instanceof Text) ? text.text : text;
+    const cText = (text instanceof Text) ? text : this.makeText(text, fontsize, fontname, color ?? C.BLACK);
+    const liney = lineno ? lineno * cText.getMeasuredLineHeight() : 0;
+    cText.textBaseline = (baseline ?? 'middle'); // 'top' | 'bottom'
+    cText.textAlign = (align ?? 'center');
+    cText.x += (dx ?? 0);
+    cText.y += ((dy ?? 0) + liney);
+    return this.addChild(cText);
+  }
+
+  /** set Title centered in topBand */
   setTitle(name: string) {
     const xwide = this.cardw - (2 * this.cm.edge);// - this.cm.coinSize;// * (1.84 / .84) // 2.1904
     const nameText = this.makeText(name, this.cm.textSize, this.cm.titleFont, C.BLACK, xwide);
     nameText.y = -this.cardh / 2 + (this.ty / 2);
-    this.addChild(nameText);
-  }
-
-  /** makeText with Tweaks: { color, dx, dy, baseline, } */
-  setText(text: string | Text, fontsize: number, fontname: string, tweaks?: TWEAKS) {
-    const cText = (text instanceof Text) ? text : this.makeText(text, fontsize, fontname, tweaks?.color ?? C.BLACK);
-    cText.textBaseline = (tweaks?.baseline ?? 'middle'); // 'top' | 'bottom'
-    cText.x += (tweaks?.dx ?? 0);
-    cText.y += (tweaks?.dy ?? 0);
-    return this.addChild(cText);
+    return this.addChild(nameText);
   }
 
   //  args=[lineno] put subtype after nth line.
   //  line=0 is always CARD-TYPE-SIZE (no shrink) [???]
   //  line=1 starts below that, and may be shrunk.
+  /** set Type centered in bottomBand; subType on lineno. */
   setType(type: string, tweaks?: { lineno?: number, color?: string } & TWEAKS) {
     const color = tweaks?.color ?? C.BLACK;
     const xwide = this.cardw - (2 * this.cm.edge) - this.cm.coinSize * (1.84 / .84) // 2.1904
     const text = this.makeText(type, this.cm.typeSize, this.cm.typeFont, color, xwide);
     const lineh = text.getMeasuredLineHeight();
-    const offset = (tweaks?.lineno ? tweaks.lineno * lineh : 0);
-    this.setText(text, undefined, undefined, { baseline: 'bottom', ...tweaks });
-    text.y += this.cardh / 2 - (this.cm.bottomBand / 2) + offset;
+    // const offset = (tweaks?.lineno ? tweaks.lineno * lineh : 0);
+    this.setTextTweaks(text, undefined, undefined, { baseline: 'bottom', ...tweaks });
+    text.y += this.cardh / 2 - (this.cm.bottomBand / 2);
+    return text;
   }
 
   setSubType(type: string, tweaks?:  { lineno?: number, color?: string }) {
     if (type) this.setType(type, tweaks);
+  }
+
+  makeCoin(value: number | string, size = this.cm.coinSize, cx = 0, cy = 0, args?: { color?: string, fontn?: string, r180?: boolean, oval?: number }) {
+    const def = { color: C.BLACK, fontn: this.cm.coinFont, r180: false, oval: 0 };
+    const { color, fontn, r180, oval } = { ...def, ...args };
+    const rv = new NamedContainer(`Coin(${value})`, cx, cy);
+    const rx = (oval === 0) ? size : size * (1 - oval);
+    const ry = (oval === 0) ? size : size * oval;
+    const coin = new EllipseShape(C.coinGold, rx, ry, '');
+    const fontsize = Math.floor(size * .82); // 110 -> 90;
+    const fontspec = this.composeFontName(fontsize, fontn);
+    const val = new CenterText(`${value}`, fontspec, color);
+    val.y += (value === '*') ? fontsize * .05 : 0;  // push '*' down to center of coin
+    if (r180) val.rotation = 180;
+    rv.addChild(coin, val);
+    return rv;
+  }
+
+  /** add coin(value) at (cx, cy) */
+  setCoin(value: number | string, size= this.cm.coinSize, cx = 0, cy = 0) {
+    return this.addChild(this.makeCoin(value, size, cx, cy));
+  }
+
+  /** addChild(coinObj) at return end XY; next Text starts there. */
+  setTextCoin(line: string, tsize0: number, tfont: string, lineno: number, liney: number) {
+    const frags = line.split('$');
+    const xwide = this.cardw - this.cm.edge * 2 - (frags.length - 1) * tsize0;
+    const font0 = this.composeFontName(tsize0, tfont);
+    const tsize = this.shrinkFontForWidth(xwide, line, tsize0, font0);
+    const fontn = this.composeFontName(tsize, tfont);
+    const linet = new Text(line, fontn);
+    const lineh = linet.getMeasuredLineHeight();
+    const coinr = lineh;             // pixel height of font.
+    const coindx = coinr + 0;        // fudge as circle replaces '$v'
+    const linew = linet.getMeasuredWidth();
+    const { width } = linet.getBounds()
+    let linex = -linew / 2;          // full line will be centered.
+    frags.forEach((frag, n) => {
+      const dx = linex, dy = liney + lineno * lineh;
+      const fragt = this.setTextTweaks(frag, tsize, tfont, { dx, dy, align: 'left' });
+      linex += fragt.getMeasuredWidth();
+      if (n + 1 < frags.length) {
+        // prep for next frag:
+        const vre = /^\d+/;
+        const fragn = frags[n + 1];  // if frag has '$', then fragn starts with /^\d+/
+        const val = fragn.match(vre)?.[0] ?? '?';
+        frags[n + 1] = fragn.replace(vre, '');
+        const coin = this.setCoin(val, coinr, linex, liney + (lineno - .5) * lineh);
+        linex = linex + coindx;
+      }
+    })
+  }
+
+  /** set main Text on card, center each line; multiline & coin glyph. */
+  setText(text: string | [string, ...any[]] | object, y0?: number) {
+    const y = (y0 !== undefined) ? y0 : -this.cardh/2 + this.cm.topBand + this.cm.topBand + this.cm.textSize;
+    const tfont = this.cm.textFont, tsize = this.cm.textSize;
+    const tlines = ((typeof text === 'string') ? text : text?.[0]) ?? '';
+    if (!tlines) return;
+    const lines = tlines.split('\n');
+    lines.forEach((line: string, lineno: number) => {
+      if (!line.includes('$')) {
+        this.setTextTweaks(line, tsize, tfont, { lineno, dy: y });
+      } else {
+        this.setTextCoin(line, tsize, tfont, lineno, y)
+      }
+    })
   }
 
   setCacheID() {
@@ -247,8 +336,7 @@ class CI_Token extends CI {
   }
 
   override setType(type: string, tweaks?: TWEAKS) {
-    const st = this.cardInfo.subtype;
-    return;
+    return undefined as CenterText;
   }
 }
 
