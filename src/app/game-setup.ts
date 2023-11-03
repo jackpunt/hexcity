@@ -4,7 +4,7 @@ import { Container, Stage } from '@thegraid/easeljs-module';
 import { CgMessage, CLOSE_CODE } from '@thegraid/wspbclient';
 import { CmType } from '../proto/CmProto';
 import { S } from './basic-intfs';
-import { CardInfo } from './card-maker';
+import { CardInfo, CardInfo2 } from './card-maker';
 import { Card, Deck, Stack } from './card';
 import { CardContainer } from './card-container';
 import { CardEvent, ValueEvent } from "./card-event";
@@ -128,7 +128,7 @@ export class GameSetup {
       }
       stack.push(...deck.stack) // stack = stack.shuffle(deck.stack)
     }
-    let isLike = (ci: CardInfo, ary: string[]): boolean => {
+    let isLike = (ci: CardInfo2, ary: string[]): boolean => {
       return !!ary.find(str => (ci.name == str || ci.type == str || ci.subtype == str || ci.ext == str))
     }
 
@@ -174,7 +174,7 @@ export class GameSetup {
     let tileCards = otherCards.findCards(card => card.isTileStack(), true)
     let policyCards = otherCards.findCards(card => card.isPolicyStack(), true)
     let tileBack: Card, eventBack: Card
-    const backDeck = BackDeck.deck.cards;
+    const backDeck = BackDeck.deck.cards as CardInfo[];
     tileBack = new Card(backDeck.find((c) => (c.name == "Tile Back")), 1, this.table)
     eventBack = new Card(backDeck.find((c) => (c.name == "Event Back")), 1, this.table)
     console.log(stime(this, `.startup: Cards loaded`), { tileBack, eventBack, tileCards });
@@ -229,7 +229,7 @@ export class GameSetup {
       let gui = this.makeParamGUI(this.table.scaleCont), map = this.table.mainMap, scaleCont = this.table.scaleCont
       this.paramGUI = this.table.paramGUI = gui
       scaleCont.addChildAt(gui, scaleCont.getChildIndex(map) - 1)
-      this.table.bindKeysToScale("z") // reset scaling params with table.paramGUI
+      this.table.bindKeysToScale("a") // reset scaling params with table.paramGUI
     }
 
     this.table.setNextPlayer(0); // enable Player0 to distArrange

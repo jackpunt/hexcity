@@ -78,16 +78,18 @@ class NamedContainer extends Container implements NamedObject {
     this.x = cx; this.y = cy;
   }
 }
-export interface CardInfo {
+
+/** for generated *-deck.ts, with string | number */
+export interface CardInfo2 {
   nreps?: number;
   name?: string;
   type?: CardType | TokenType;
   subtype?: SubType | null;
   color?: string | null;
   cost?: string | number;
-  step?: number;
-  stop?: number;
-  rent?: number;
+  step?: number | string;
+  stop?: number | string;
+  rent?: number | string;
   vp?: string | number;
   ext?: string | null;
   text?: string | [string, ...any[]] | null | object;
@@ -106,10 +108,17 @@ export interface CardInfo {
   imagePromise?: Promise<HTMLImageElement> // waiting for image to load from disk
 }
 
+/** used by Card, step,stop,rent reduced to number. */
+export interface CardInfo extends CardInfo2 {
+  step?: number;
+  stop?: number;
+  rent?: number;
+}
+
 /** CardImage (for a Card) based on CardInfo */
 export class CI extends Container {
   baseShape: PaintableShape;
-  constructor(public cm: CardMaker, public cardInfo: CardInfo, scale = cm.scale) {
+  constructor(public cm: CardMaker, public cardInfo: CardInfo2, scale = cm.scale) {
     super();
     this.scaleX = this.scaleY = scale;
 
@@ -121,6 +130,7 @@ export class CI extends Container {
     this.setTitle(cardInfo.name);
     this.setType(cardInfo.type, cardInfo.extras);
     this.setSubType(cardInfo.subtype, { lineno: 1 });
+    this.setPriceBar(cardInfo)
     this.setText(cardInfo.text)
     this.updateCache();
   }
@@ -204,6 +214,22 @@ export class CI extends Container {
     if (type) this.setType(type, tweaks);
   }
 
+  setPriceBar(info: CardInfo2, ty = this.ty, color = 'rgb(100,100,100)') {
+    const { x, y, width: w, height: h } = this.getBounds();
+    const { step, stop, rent } = info;
+    if (step === undefined && stop === undefined && rent === undefined) return;
+    const size = this.cm.coinSize;
+    const pad = 5, cy = pad + ty / 2, cx = this.cardw / 2 - this.cm.edge - size / 2;
+    const bar = new NamedContainer('PriceBar', 0, cy);
+    bar.y = ty - h / 2;
+    const band = new RectShape({ x, y: 0, w, h: ty }, color, '');
+    const stepc = (step === undefined || step === null) ? undefined : this.makeCoin(step, size, -cx, cy);
+    const stopc = (stop === undefined || stop === null) ? undefined : this.makeCoin(stop, size, 0, cy);
+    const rentc = (rent === undefined || rent === null) ? undefined : this.makeCoin(rent, size, cx, cy);
+    bar.addChild(band, stepc, stopc, rentc);
+    this.addChild(bar);
+  }
+
   makeCoin(value: number | string, size = this.cm.coinSize, cx = 0, cy = 0, args?: { color?: string, fontn?: string, r180?: boolean, oval?: number }) {
     const def = { color: C.BLACK, fontn: this.cm.coinFont, r180: false, oval: 0 };
     const { color, fontn, r180, oval } = { ...def, ...args };
@@ -211,12 +237,17 @@ export class CI extends Container {
     const rx = (oval === 0) ? size : size * (1 - oval);
     const ry = (oval === 0) ? size : size * oval;
     const coin = new EllipseShape(C.coinGold, rx, ry, '');
+    const dot = new CircleShape(C.BLUE, 5, '');
     const fontsize = Math.floor(size * .82); // 110 -> 90;
     const fontspec = this.composeFontName(fontsize, fontn);
+    // value = '*';
     const val = new CenterText(`${value}`, fontspec, color);
-    val.y += (value === '*') ? fontsize * .05 : 0;  // push '*' down to center of coin
+    // vertical offset to align digits (or '*') in circle;
+    const offset = this.cm.coinFontAdj + ((value === '*') ? .13 : 0);
+    val.y = fontsize * offset;
+    val.scaleX = this.cm.coinFontX;  // narrow/compact the font
     if (r180) val.rotation = 180;
-    rv.addChild(coin, val);
+    rv.addChild(coin, dot, val);
     return rv;
   }
 
@@ -249,7 +280,7 @@ export class CI extends Container {
         const fragn = frags[n + 1];  // if frag has '$', then fragn starts with /^\d+/
         const val = fragn.match(vre)?.[0] ?? '?';
         frags[n + 1] = fragn.replace(vre, '');
-        const coin = this.setCoin(val, coinr, linex, liney + (lineno - .5) * lineh);
+        const coin = this.setCoin(val, coinr, linex + coinr/2, liney +coinr/2 + (lineno - .5) * lineh);
         linex = linex + coindx;
       }
     })
@@ -326,6 +357,9 @@ class CI_Move extends CI {
 class CI_Dir extends CI {
 
 }
+class CI_Back extends CI {
+  override setPriceBar(info: CardInfo2, ty?: number, color?: string): void {  }
+}
 class CI_Token extends CI {
 
   override setWidthHeight(cardInfo?: CardInfo, cm?: CardMaker): void {
@@ -338,6 +372,7 @@ class CI_Token extends CI {
   override setType(type: string, tweaks?: TWEAKS) {
     return undefined as CenterText;
   }
+  override setPriceBar(info: CardInfo2, ty?: number, color?: string): void {  }
 }
 
 /** holds all the context; use a factory to make a Card (or CardImage?) based on supplied CardInfo */
@@ -356,12 +391,15 @@ export class CardMaker {
 
   textFont = 'Times New Roman 400';
   sfFont = 'SF Compact Rounded';
-  fontFam = 'Nunito';                     // Nunito is variable weight, but less compact
-  titleFont = `${this.fontFam} 600`;      // Medium font-weight: 557
+  nunito = 'Nunito';                      // Nunito is variable weight, but less compact
+  fontFam = this.nunito;                  // also change in style.css to preload
+  titleFont = `${this.fontFam} 600`;      // Medium font-weight: sfFont: 557
   typeFont = `${this.fontFam} 557`;
-  coinFont = `${this.fontFam} 557`;
   vpFont = `${this.fontFam} 659`;
   dirFont = `${this.fontFam} 659`; // Semibold font-weight: 659
+  coinFont = `${this.fontFam} 557`;
+  coinFontX = .85;
+  coinFontAdj = .11; // SFCR: .05, Nunito: .11
 
   titleSize = 60;
   textSize = 50;
@@ -426,6 +464,7 @@ export class CardMaker {
       case 'Direction':
       case 'Alignment':
       case 'Back':
+        return new CI_Back(this, info);
       default:
         return new CI(this,info);
     }

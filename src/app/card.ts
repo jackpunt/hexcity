@@ -3,16 +3,17 @@ import { Bitmap, Container, DisplayObject, Text } from '@thegraid/easeljs-module
 import type { DebtContainer } from './Debt';
 import { C, F, S, WH } from './basic-intfs';
 import { CardContainer } from './card-container';
-import { CI, CardInfo, CardMaker, CardType, SubType } from "./card-maker";
+import { CI, CardInfo, CardInfo2, CardMaker, CardType, SubType } from "./card-maker";
 import { loadImage } from './image-loader';
 import { Player } from './player';
 import { Table } from './table';
 import { TP } from './table-params';
 import { ValueCounter } from "./value-counter";
 
+/** Used in generated *-deck.ts files */
 export interface Deck {
   name: string;
-  cards: CardInfo[];
+  cards: CardInfo2[]; // step,stop,rent: string | number
   stack?: Stack;
 }
 /** identify where Card is stacked.
@@ -143,25 +144,6 @@ export class Stack extends Array<Card> {
   }
 }
 
-/** potential components in Card. */
-export interface CardInfo0 {
-  path: string; // path to image.png
-  nreps?: number;
-  type?: string;
-  name?: string;
-  cost?: string | number;
-  step?: number;
-  stop?: number;
-  rent?: number;
-  vp?: string | number;
-  ext?: string | null;
-  subtype?: string | null;
-  text?: string | null;
-  props?: object;
-  image?: HTMLImageElement;
-  imagePromise?: Promise<HTMLImageElement>
-}
-
 // open question if we should deckify as n-instances of Card,
 // or maintain & use the nreps.
 
@@ -181,6 +163,9 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   /** set this.bitmap so it displays the correct image of this Card.
    *
    * originally load a saved image; now: CI is a container of Shapes & Text.
+   *
+   * PlanC: if info ISA Card, then it has a CI which has a cache/bitmapCache,
+   * set this bitmap to use the same bitmap!
    */
   setBaseImage(info: CardInfo, scale = 1.0) {
     // Assume that Card has a legitmate bitmap.image by now (because we waited for all promises)
@@ -227,9 +212,10 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
    * @param nrep optional: use info.nreps || 1
    * @param table optional: but final Card must set .table somewhere
    */
-  constructor(info: CardInfo , nrep?: number, table?: Table) {
+  constructor(public info: CardInfo , nrep?: number, table?: Table) {
     //super(Card.assetPath + info.path);
     super() ;
+    if (info instanceof Card) info = this.info = info.info; // use the *original* info.
     // Assert: a Card is created before any Debt, Flag, or HouseToken; TODO better detect super() calls
     if (!Card.cardClassName) Card.cardClassName = this.constructor.name;  // "Card" or random optimized
     const scale = .5;
@@ -441,6 +427,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     this.table.addUndoRec(card, undoName, () => card.moveCardUndo(os))
   }
 
+  /** just use Card (extends CardInfo) */
   getCardInfo(card: Card): CardInfo {
     return {
       path: card.path,
@@ -469,7 +456,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
    * @param thisArg call donefunc with 'this'
    * @return a Stack of the Cards; stack.imagePromises: Array\<Promise\<HTMLImageElement>>
    */
-  static loadCards(info: CardInfo[], table?: Table, donefunc?:((stack:Stack) => void), thisArg?: any): Stack {
+  static loadCards(info: CardInfo2[], table?: Table, donefunc?:((stack:Stack) => void), thisArg?: any): Stack {
     let stack: Stack = new Stack()
     let promises: Array<Promise<HTMLImageElement>> = [];
     //console.log(stime(this, ".loadCards1: stack="), stack, promises)
