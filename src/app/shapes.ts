@@ -111,7 +111,12 @@ export class HexShape extends PaintableShape {
 
 export class EllipseShape extends PaintableShape {
   g0: Graphics;
-  /** retain g0, to use as baseline Graphics for each paint() */
+  /**
+   * ellipse centered on (0,0), axis is NS/EW, rotate after.
+   * @param radx radius in x dir
+   * @param rady radisu in y dir
+   * retain g0, to use as baseline Graphics for each paint()
+   */
   constructor(public fillc = C.white, public radx = 30, public rady = 30, public strokec = C.black, g0?: Graphics) {
     super((fillc) => this.cscgf(fillc));
     this.g0 = g0?.clone();
@@ -121,10 +126,15 @@ export class EllipseShape extends PaintableShape {
   cscgf(fillc: string, g = this.g0?.clone() ?? new Graphics()) {
     ((this.fillc = fillc) ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
-    g.de(-this.radx / 2, -this.radx / 2, this.radx, this.rady);  // easlejs can determine Bounds of Ellipse
+    g.de(-this.radx, -this.radx, 2 * this.radx, 2 * this.rady);  // easlejs can determine Bounds of Ellipse
     return g;
   }
 }
+  /**
+   * Circle centered on (0,0)
+   * @param rad radius
+   * retain g0, to use as baseline Graphics for each paint()
+   */
 export class CircleShape extends EllipseShape {
   /** retain g0, to use as baseline Graphics for each paint() */
   constructor(fillc = C.white, rad = 30, strokec = C.black, g0?: Graphics) {

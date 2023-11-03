@@ -129,6 +129,8 @@ export class CI extends Container {
     this.makeBase(); // includes cache();
     this.setTitle(cardInfo.name);
     this.setType(cardInfo.type, cardInfo.extras);
+    this.setCost(cardInfo.cost);
+    this.setVP(cardInfo.vp);
     this.setSubType(cardInfo.subtype, { lineno: 1 });
     this.setPriceBar(cardInfo)
     this.setText(cardInfo.text)
@@ -201,7 +203,7 @@ export class CI extends Container {
   /** set Type centered in bottomBand; subType on lineno. */
   setType(type: string, tweaks?: { lineno?: number, color?: string } & TWEAKS) {
     const color = tweaks?.color ?? C.BLACK;
-    const xwide = this.cardw - (2 * this.cm.edge) - this.cm.coinSize * (1.84 / .84) // 2.1904
+    const xwide = this.cardw - (2 * this.cm.edge) - 2.2 * this.cm.coinSize;
     const text = this.makeText(type, this.cm.typeSize, this.cm.typeFont, color, xwide);
     const lineh = text.getMeasuredLineHeight();
     // const offset = (tweaks?.lineno ? tweaks.lineno * lineh : 0);
@@ -219,7 +221,7 @@ export class CI extends Container {
     const { step, stop, rent } = info;
     if (step === undefined && stop === undefined && rent === undefined) return;
     const size = this.cm.coinSize;
-    const pad = 5, cy = pad + ty / 2, cx = this.cardw / 2 - this.cm.edge - size / 2;
+    const pad = 5, cy = pad + ty / 2, cx = this.cardw / 2 - this.cm.edge - size;
     const bar = new NamedContainer('PriceBar', 0, cy);
     bar.y = ty - h / 2;
     const band = new RectShape({ x, y: 0, w, h: ty }, color, '');
@@ -230,15 +232,14 @@ export class CI extends Container {
     this.addChild(bar);
   }
 
-  makeCoin(value: number | string, size = this.cm.coinSize, cx = 0, cy = 0, args?: { color?: string, fontn?: string, r180?: boolean, oval?: number }) {
+  makeCoin(value: number | string, rad = this.cm.coinSize, cx = 0, cy = 0, args?: { color?: string, fontn?: string, r180?: boolean, oval?: number }) {
     const def = { color: C.BLACK, fontn: this.cm.coinFont, r180: false, oval: 0 };
     const { color, fontn, r180, oval } = { ...def, ...args };
     const rv = new NamedContainer(`Coin(${value})`, cx, cy);
-    const rx = (oval === 0) ? size : size * (1 - oval);
-    const ry = (oval === 0) ? size : size * oval;
+    const rx = (oval === 0) ? rad : rad * (1 - oval);
+    const ry = (oval === 0) ? rad : rad * oval;
     const coin = new EllipseShape(C.coinGold, rx, ry, '');
-    const dot = new CircleShape(C.BLUE, 5, '');
-    const fontsize = Math.floor(size * .82); // 110 -> 90;
+    const fontsize = Math.floor(2 * rad * .82); // 110 -> 90;
     const fontspec = this.composeFontName(fontsize, fontn);
     // value = '*';
     const val = new CenterText(`${value}`, fontspec, color);
@@ -247,13 +248,14 @@ export class CI extends Container {
     val.y = fontsize * offset;
     val.scaleX = this.cm.coinFontX;  // narrow/compact the font
     if (r180) val.rotation = 180;
-    rv.addChild(coin, dot, val);
+    rv.addChild(coin, val);
+    // rv.addChild(new CircleShape(C.BLUE, 5, '')); // center dot
     return rv;
   }
 
   /** add coin(value) at (cx, cy) */
-  setCoin(value: number | string, size= this.cm.coinSize, cx = 0, cy = 0) {
-    return this.addChild(this.makeCoin(value, size, cx, cy));
+  setCoin(value: number | string, rad = this.cm.coinSize, cx = 0, cy = 0) {
+    return this.addChild(this.makeCoin(value, rad, cx, cy));
   }
 
   /** addChild(coinObj) at return end XY; next Text starts there. */
@@ -265,8 +267,8 @@ export class CI extends Container {
     const fontn = this.composeFontName(tsize, tfont);
     const linet = new Text(line, fontn);
     const lineh = linet.getMeasuredLineHeight();
-    const coinr = lineh;             // pixel height of font.
-    const coindx = coinr + 0;        // fudge as circle replaces '$v'
+    const coinr = lineh / 2;         // pixel height of font.
+    const coindx = coinr * 2 + 0;        // fudge as circle replaces '$v'
     const linew = linet.getMeasuredWidth();
     const { width } = linet.getBounds()
     let linex = -linew / 2;          // full line will be centered.
@@ -280,7 +282,7 @@ export class CI extends Container {
         const fragn = frags[n + 1];  // if frag has '$', then fragn starts with /^\d+/
         const val = fragn.match(vre)?.[0] ?? '?';
         frags[n + 1] = fragn.replace(vre, '');
-        const coin = this.setCoin(val, coinr, linex + coinr/2, liney +coinr/2 + (lineno - .5) * lineh);
+        const coin = this.setCoin(val, coinr, linex + coinr, liney + coinr + (lineno - .5) * lineh);
         linex = linex + coindx;
       }
     })
@@ -292,7 +294,7 @@ export class CI extends Container {
     const tfont = this.cm.textFont, tsize = this.cm.textSize;
     const tlines = ((typeof text === 'string') ? text : text?.[0]) ?? '';
     if (!tlines) return;
-    const lines = tlines.split('\n');
+    const lines = tlines.split('\n'); // TODO: vertical centering
     lines.forEach((line: string, lineno: number) => {
       if (!line.includes('$')) {
         this.setTextTweaks(line, tsize, tfont, { lineno, dy: y });
@@ -300,6 +302,20 @@ export class CI extends Container {
         this.setTextCoin(line, tsize, tfont, lineno, y)
       }
     })
+  }
+
+  setCost(cost: number | string) {
+    if (cost === undefined || cost === null) return;
+    // High Tech: { cost: "9+" }
+    const rad = this.cm.coinSize, cx = - (this.cardw / 2) + this.cm.edge + rad, cy = this.cardh / 2 - this.cm.edge - rad;
+    this.setCoin(cost, rad, cx, cy);
+  }
+
+  setVP(vp: number | string) {
+    if (vp === undefined || vp === null) return;
+    const size = this.cm.vpSize, font = this.cm.vpFont;
+    const dx = this.cardw / 2 - size, dy = this.cardh / 2 - size;
+    this.setTextTweaks(`${vp}`, size, font, { color: C.WHITE, dx, dy });
   }
 
   setCacheID() {
@@ -359,6 +375,7 @@ class CI_Dir extends CI {
 }
 class CI_Back extends CI {
   override setPriceBar(info: CardInfo2, ty?: number, color?: string): void {  }
+  override setCost(cost: string | number): void {}
 }
 class CI_Token extends CI {
 
@@ -368,11 +385,28 @@ class CI_Token extends CI {
   override makeMaskCanvas(bleed?: number, r?: number, scale?: number): void {
     super.makeMaskCanvas(bleed, this.cm.circle_image_size / 2, scale);
   }
+  override setTitle(name: string): CenterText {
+    return undefined;
+  }
 
   override setType(type: string, tweaks?: TWEAKS) {
     return undefined as CenterText;
   }
+
   override setPriceBar(info: CardInfo2, ty?: number, color?: string): void {  }
+
+  override setCost(cost: string | number): void {
+    if (cost === null) return;
+    this.setTextTweaks(`${cost}`, this.cardw/2, this.cm.fontFam);
+
+  }
+  override setVP(vp: number | string) {
+    if (vp === undefined || vp === null) return;
+    const size = this.cm.vpSize / 2, font = this.cm.vpFont;
+    const dx = this.cardw / 2 - size, dy = this.cardh / 2 - size;
+    this.setTextTweaks(`${vp}`, size, font, { color: C.WHITE, dx, dy });
+  }
+
 }
 
 /** holds all the context; use a factory to make a Card (or CardImage?) based on supplied CardInfo */
@@ -404,7 +438,7 @@ export class CardMaker {
   titleSize = 60;
   textSize = 50;
   typeSize = 40;
-  coinSize = 90;
+  /** radius of Coin */coinSize = 45;
   vpSize = 70;
   dirSize = 400; // font size! (and then shrink-to-fit)
 
