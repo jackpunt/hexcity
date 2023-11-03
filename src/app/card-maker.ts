@@ -92,7 +92,7 @@ export interface CardInfo2 {
   rent?: number | string;
   vp?: string | number;
   ext?: string | null;
-  text?: string | [string, ...any[]] | null | object;
+  text?: string | null | object;
   textLow?: string | null | object;
   ispec?: [name?: string, x?: xiarg, y?: yiarg, w?: number, h?: number | 'xs']; // ~/Google Drive/jpeckj/Estates/images/...
   props?: object;     // cardProps: event/policy/tile script
@@ -261,7 +261,7 @@ export class CI extends Container {
   /** addChild(coinObj) at return end XY; next Text starts there. */
   setTextCoin(line: string, tsize0: number, tfont: string, lineno: number, liney: number) {
     const frags = line.split('$');
-    const xwide = this.cardw - this.cm.edge * 2 - (frags.length - 1) * tsize0;
+    const xwide = this.cardw - this.cm.edge * 2 + (frags.length - 1) * tsize0 * .5; // '$n ' -> '()'
     const font0 = this.composeFontName(tsize0, tfont);
     const tsize = this.shrinkFontForWidth(xwide, line, tsize0, font0);
     const fontn = this.composeFontName(tsize, tfont);
@@ -289,10 +289,11 @@ export class CI extends Container {
   }
 
   /** set main Text on card, center each line; multiline & coin glyph. */
-  setText(text: string | [string, ...any[]] | object, y0?: number) {
-    const y = (y0 !== undefined) ? y0 : -this.cardh/2 + this.cm.topBand + this.cm.topBand + this.cm.textSize;
-    const tfont = this.cm.textFont, tsize = this.cm.textSize;
-    const tlines = ((typeof text === 'string') ? text : text?.[0]) ?? '';
+  setText(text: string | { key0?: string, size?: number }, y0?: number) {
+    const size = (typeof text !== 'string') ? text?.size : undefined;
+    const tfont = this.cm.textFont, tsize = size ?? this.cm.textSize;
+    const tlines = ((typeof text === 'string') ? text : text?.key0) ?? '';
+    const y = (y0 !== undefined) ? y0 : -this.cardh/2 + this.cm.topBand + this.cm.topBand + this.cm.textSize/2 + tsize/2;
     if (!tlines) return;
     const lines = tlines.split('\n'); // TODO: vertical centering
     lines.forEach((line: string, lineno: number) => {
@@ -423,10 +424,10 @@ export class CardMaker {
   get topBand() { return 115 + this.bleed; }
   get bottomBand() { return 130 + this.bleed; }
 
-  textFont = 'Times New Roman 400';
   sfFont = 'SF Compact Rounded';
   nunito = 'Nunito';                      // Nunito is variable weight, but less compact
   fontFam = this.nunito;                  // also change in style.css to preload
+  textFont = `${this.fontFam} 400`;
   titleFont = `${this.fontFam} 600`;      // Medium font-weight: sfFont: 557
   typeFont = `${this.fontFam} 557`;
   vpFont = `${this.fontFam} 659`;
