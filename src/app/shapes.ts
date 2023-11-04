@@ -126,7 +126,7 @@ export class EllipseShape extends PaintableShape {
   cscgf(fillc: string, g = this.g0?.clone() ?? new Graphics()) {
     ((this.fillc = fillc) ? g.f(fillc) : g.ef());
     (this.strokec ? g.s(this.strokec) : g.es());
-    g.de(-this.radx, -this.radx, 2 * this.radx, 2 * this.rady);  // easlejs can determine Bounds of Ellipse
+    g.de(-this.radx, -this.rady, 2 * this.radx, 2 * this.rady);  // easlejs can determine Bounds of Ellipse
     return g;
   }
 }

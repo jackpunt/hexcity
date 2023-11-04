@@ -300,17 +300,18 @@ export class CI extends Container {
     this.addChild(bar);
   }
 
-  makeCoin(value: number | string, rad = this.cm.coinSize, cx = 0, cy = 0, args?: { color?: string, fontn?: string, r180?: boolean, oval?: number }) {
+  makeCoin(value: number | string, rad = this.cm.coinSize, cx = 0, cy = 0,
+    args?: { color?: string, fontn?: string, r180?: boolean, oval?: number }) {
     const def = { color: C.BLACK, fontn: this.cm.coinFont, r180: false, oval: 0 };
     const { color, fontn, r180, oval } = { ...def, ...args };
     const rv = new NamedContainer(`Coin(${value})`, cx, cy);
-    const rx = (oval === 0) ? rad : rad * (1 - oval);
-    const ry = (oval === 0) ? rad : rad * oval;
+    const ry = (oval === 0) ? rad : rad;
+    const rx = (oval === 0) ? rad : rad * oval;
     const coin = new EllipseShape(C.coinGold, rx, ry, '');
     const fontsize = Math.floor(2 * rad * .82); // 110 -> 90;
     const fontspec = this.composeFontName(fontsize, fontn);
     // value = '*';
-    const val = new CenterText(`${value}`, fontspec, color);
+    const val = new CenterText(`${value}`, fontspec, color); // @ (0,0)
     // vertical offset to align digits (or '*') in circle;
     const offset = this.cm.coinFontAdj + ((value === '*') ? .13 : 0);
     val.y = fontsize * offset;
@@ -322,8 +323,9 @@ export class CI extends Container {
   }
 
   /** add coin(value) at (cx, cy) */
-  setCoin(value: number | string, rad = this.cm.coinSize, cx = 0, cy = 0) {
-    return this.addChild(this.makeCoin(value, rad, cx, cy));
+  setCoin(value: number | string, rad = this.cm.coinSize, cx = 0, cy = 0,
+    args?: { color?: string, fontn?: string, r180?: boolean, oval?: number }) {
+    return this.addChild(this.makeCoin(value, rad, cx, cy, args));
   }
 
   /** addChild(coinObj) at return end XY; next Text starts there. */
@@ -449,6 +451,15 @@ export class CI extends Container {
         this.setLine(liney, undefined, undefined, thick);
         tweaks.dy = texty;
         this.setTextTweaks(text0, size0, fontn, tweaks);
+      }
+      const coin = extra.coin;
+      if (coin) {
+        const gap = this.cardh * .013;
+        const top = this.cm.topBand + this.cm.priceBarSize + gap;
+        const bot = this.cm.bottomBand + gap;
+        const rady = (this.cardh - top - bot) / 2, cx = 0, cy = top + rady - this.cardh / 2;
+        const oval = .8;
+        this.setCoin(coin, rady, cx, cy, { oval });
       }
     })
   }
