@@ -21,25 +21,28 @@ import { NamedObject } from "./game-play";
 
 type BASELINE = "top" | "hanging" | "middle" | "alphabetic" | "ideographic" | "bottom";
 type TWEAKS = {
-  align?: 'left' | 'center' | 'right',
-  font?: string, lineno?: number, color?: string,
-  bold?: boolean, dx?: number, dy?: number, baseline?: BASELINE
+  align?: 'left' | 'center' | 'right', size?: number,
+  font?: string, lineno?: number, color?: string, nlh?: number, // add lead to after/btwn each line.
+  wght?: string | number, dx?: number, dy?: number, baseline?: BASELINE
 };
-type XTEXT = [text: string, x: number, y: number, justify: 'LEFTJ' | 'CENTER' | 'RIGHTJ', size: number, fontname: string, color: string, ...rest: any[]];
-type XLINE = [y: number, color: string, margin: number, thick: number];
+// type TWEAK_KEY = keyof TWEAKS;
+// type TWEAK = { [key in TWEAK_KEY]?: string | number };
+type XTEXT = [text: string, x?: number | 'center', y?: number | 'center', justify?: 'LEFTJ' | 'CENTER' | 'RIGHTJ', size?: number, fontname?: string, color?: string, rest?: TWEAKS];
+type XLINE = [y: number, color?: string, margin?: number, thick?: number];
 type LVAL = string|number|any[];
 type EXTRAS = {
   text?: XTEXT,
   line?: XLINE,
-  vp?: LVAL,
+  vp?: XTEXT | string | number,
   cardProps?: any,
   ext?: any,
   image?: LVAL,
+  coin?: number,
   step?: LVAL,
   subtype?: LVAL,
   filen?: LVAL,
   xname?: LVAL,
-  textLow?: any };
+  textLow?: string | [text: string, ...tweaks: TWEAKS[]] };
 
 const TokenTypes = [
   'Debt',
@@ -210,7 +213,12 @@ export class CI extends Container {
   }
 
   shrinkFontForWidth(xwide: number, text: string, fontsize: number, fontspec: string,  ) {
-    const width = new Text(text, fontspec).getMeasuredWidth();
+    const lines = text.split('\n');
+    let width = 0;
+    lines.forEach(line => {
+      const wide = new Text(line, fontspec).getMeasuredWidth();
+      width = Math.max(width, wide);
+    })
     return (width <= xwide) ? fontsize : Math.floor(fontsize * xwide / width);
   }
 
@@ -222,17 +230,31 @@ export class CI extends Container {
     return new CenterText(text, fontname, color);
   }
 
-  /** setText [Centered] with Tweaks: { color, dx, dy, lineno, baseline, align} */
+  /** setText [Centered] with Tweaks: { color, dx, dy, lineno, baseline, align, nlh} */
   setTextTweaks(text: string | Text, fontsize: number, fontname: string, tweaks?: TWEAKS) {
-    const { color, dx, dy, lineno, baseline, align } = tweaks ?? {};
-    // const text0 = (text instanceof Text) ? text.text : text;
+    const { color, dx, dy, lineno, baseline, align, nlh } = tweaks ?? {};
     const cText = (text instanceof Text) ? text : this.makeText(text, fontsize, fontname, color ?? C.BLACK);
-    const liney = lineno ? lineno * cText.getMeasuredLineHeight() : 0;
+    const lineHeight = nlh ? (cText.lineHeight = nlh) : cText.getMeasuredLineHeight();
+    const liney = lineno ? lineno * lineHeight : 0;
     cText.textBaseline = (baseline ?? 'middle'); // 'top' | 'bottom'
     cText.textAlign = (align ?? 'center');
     cText.x += (dx ?? 0);
     cText.y += ((dy ?? 0) + liney);
     return this.addChild(cText);
+  }
+
+  // will not work... unless we measure each frag, which is what original code does.
+  replaceAndRecordCoins(text: string) {
+    const rv = [];
+    const vre = /\$(\d+)/dg;
+    let lineno = 0, nxt = 0;
+    const match = vre.exec(text) as any as
+    [dval: string, val: string, index: number, input: string, groups: any, indices: [b: number, e: number]];
+    while (match) {
+      const [dval, val, index, input, groups, indices] = match;
+      lineno += (input.substring(nxt, index).split('\n').length -1);
+      rv.push({})
+    }
   }
 
   /** set Title centered in topBand */
@@ -262,14 +284,14 @@ export class CI extends Container {
     if (type) this.setType(type, tweaks);
   }
 
-  setPriceBar(info: CardInfo2, ty = this.ty, color = 'rgb(100,100,100)') {
+  setPriceBar(info: CardInfo2, color = 'rgb(100,100,100)') {
     const { x, y, width: w, height: h } = this.getBounds();
     const { step, stop, rent } = info;
     if (step === undefined && stop === undefined && rent === undefined) return;
-    const size = this.cm.coinSize;
-    const pad = 5, cy = pad + ty / 2, cx = this.cardw / 2 - this.cm.edge - size;
+    const size = this.cm.coinSize, ty = this.cm.priceBarSize;
+    const cy = ty / 2, cx = this.cardw / 2 - this.cm.edge - size;
     const bar = new NamedContainer('PriceBar', 0, cy);
-    bar.y = ty - h / 2;
+    bar.y = this.cm.topBand - h / 2;
     const band = new RectShape({ x, y: 0, w, h: ty }, color, '');
     const stepc = (step === undefined || step === null) ? undefined : this.makeCoin(step, size, -cx, cy);
     const stopc = (stop === undefined || stop === null) ? undefined : this.makeCoin(stop, size, 0, cy);
@@ -305,7 +327,7 @@ export class CI extends Container {
   }
 
   /** addChild(coinObj) at return end XY; next Text starts there. */
-  setTextCoin(line: string, tsize0: number, tfont: string, lineno: number, liney: number) {
+  setTextWithCoins(line: string, tsize0: number, tfont: string, lineno: number, liney: number) {
     const frags = line.split('$');
     const xwide = this.cardw - this.cm.edge * 2 + (frags.length - 1) * tsize0 * .5; // '$n ' -> '()'
     const font0 = this.composeFontName(tsize0, tfont);
@@ -318,7 +340,7 @@ export class CI extends Container {
     const linew = linet.getMeasuredWidth();
     const { width } = linet.getBounds()
     let linex = -linew / 2;          // full line will be centered.
-    frags.forEach((frag, n) => {
+    frags.forEach((frag, n) => {     // ASSERT: frag has no newline
       const dx = linex, dy = liney + lineno * lineh;
       const fragt = this.setTextTweaks(frag, tsize, tfont, { dx, dy, align: 'left' });
       linex += fragt.getMeasuredWidth();
@@ -336,17 +358,17 @@ export class CI extends Container {
 
   /** set main Text on card, center each line; multiline & coin glyph. */
   setText(text: string | { key0?: string, size?: number }, y0?: number) {
-    const size = (typeof text !== 'string') ? text?.size : undefined;
-    const tfont = this.cm.textFont, tsize = size ?? this.cm.textSize;
-    const tlines = ((typeof text === 'string') ? text : text?.key0) ?? '';
-    const y = (y0 !== undefined) ? y0 : -this.cardh/2 + this.cm.topBand + this.cm.topBand + this.cm.textSize/2 + tsize/2;
+    const tlines = ((typeof text === 'string') ? text : text?.key0) ?? undefined;
     if (!tlines) return;
+    const tsize = (typeof text !== 'string') ? text?.size ?? this.cm.textSize : this.cm.textSize;
+    const tfont = this.cm.textFont;
+    const y = (y0 !== undefined) ? y0 : -this.cardh / 2 + this.cm.topBand + this.cm.priceBarSize + tsize;
     const lines = tlines.split('\n'); // TODO: vertical centering
     lines.forEach((line: string, lineno: number) => {
       if (!line.includes('$')) {
         this.setTextTweaks(line, tsize, tfont, { lineno, dy: y });
       } else {
-        this.setTextCoin(line, tsize, tfont, lineno, y)
+        this.setTextWithCoins(line, tsize, tfont, lineno, y)
       }
     })
   }
@@ -374,25 +396,59 @@ export class CI extends Container {
     }
   }
 
-  setLine(liney: number, color: string, margin: number, thick: number) {
+  setLine(liney: number, color = C.BLACK, margin = 40, thick = 5) {
     const line = new Shape();
-    const x0 = margin - this.cardw;
-    line.graphics.mt(x0, liney).lt(-x0, liney);//
+    const x0 = margin - this.cardw / 2, y = liney - this.cardh/2;
+    line.graphics.ss(thick, 'round').s(color).mt(x0, y).lt(-x0, y);//
     this.addChild(line);
   }
 
   setExtras(extras: EXTRAS[]) {
     extras?.forEach((extra: EXTRAS) =>{
       const exline: XLINE = extra.line;
+      if (exline) {
+        const [liney, color, margin, thick ] = exline;
+        this.setLine(liney, color, margin, thick);
+      }
       const extext: XTEXT = extra.text;
-      if (exline) this.setLine(...exline);
       if (extext) {
-        const [text, dx0, dy0, justify, size, fontname, color, ...rest] = extext;
-        const dx = ((dx0 < 0) ? dx0 + this.cardw : dx0) - this.cardw / 2;
-        const dy = dy0 - this.cardh / 2;
-        const font = (fontname === 'TEXTFONT') ? this.cm.textFont : fontname;
+        const [text, dx0, dy0, justify, size, fontname, color, rest] = extext;
+        const dx1 = (dx0 === 'center') ? this.cardw / 2 : dx0 as number;
+        const dy1 = (dy0 === 'center') ? this.cardh / 2 : dy0 as number;
+        const dx = ((dx1 < 0) ? dx1 + this.cardw : dx1) - this.cardw / 2;
+        const dy = dy1 - this.cardh / 2;
+        const fname = (fontname === 'TEXTFONT') ? this.cm.textFont : fontname;
         const align = (justify === 'LEFTJ') ? 'left' : (justify === 'RIGHTJ') ? 'right' : (justify=== 'CENTER') ? 'center' : undefined;
-        this.setTextTweaks(text, size, font, { color, dx, dy, align });
+        const fsize = (size !== undefined) ? size : this.cm.textSize;
+        this.setTextTweaks(text, fsize, fname, { color, dx, dy, align, ...rest });
+      }
+      const exvp = extra.vp; // XTEXT, string, number (ignore simple string/number; done setVP())
+      if (typeof exvp === 'object') {
+        const [text, dx0, dy0, justify, size, fontname, color, rest] = exvp;
+        const dx1 = (dx0 === 'center') ? this.cardw / 2 : dx0 as number;
+        const dy1 = (dy0 === 'center') ? this.cardw / 2 : dx0 as number;
+        const x0 = this.cardw / 2 - this.cm.vpSize, y0 = this.cardh / 2 - this.cm.vpSize;
+        const dx = x0 + dx1;
+        const dy = y0 + dy1;
+        const font = (fontname === 'TEXTFONT') ? this.cm.vpFont : fontname;
+        const align = (justify === 'LEFTJ') ? 'left' : (justify === 'RIGHTJ') ? 'right' : (justify=== 'CENTER') ? 'center' : undefined;
+        this.setTextTweaks(text, size, font, { color, dx, dy, align, ...rest });
+      }
+      const textLow = extra.textLow;
+      if (textLow) {
+        const xwide = this.cardw - (2 * this.cm.edge), thick = 5;
+        const [text, ...tweaks_ary] = (typeof textLow === 'string') ? [textLow] : textLow;
+        let tweaks = {} as TWEAKS;
+        tweaks_ary.forEach(elt => tweaks = { ...elt, ...tweaks });
+        const size0 = tweaks.size ?? this.cm.textSize, fontn = this.cm.textFont, lead = size0 / 4;
+        const text0 = this.makeText(text, size0, fontn, tweaks.color ?? C.BLACK, xwide);
+        const lineh = text0.getMeasuredLineHeight();
+        const height = text0.getMeasuredHeight(); // multi-line...
+        const liney = this.cardh - this.cm.bottomBand - height - lead - lead - thick / 2;
+        const texty = liney + thick / 2 + lead  + lineh / 2 - this.cardh / 2;
+        this.setLine(liney, undefined, undefined, thick);
+        tweaks.dy = texty;
+        this.setTextTweaks(text0, size0, fontn, tweaks);
       }
     })
   }
@@ -416,7 +472,7 @@ class CI_Dir extends CI {
 
 }
 class CI_Back extends CI {
-  override setPriceBar(info: CardInfo2, ty?: number, color?: string): void {  }
+  override setPriceBar(info: CardInfo2, color?: string): void {  }
   override setCost(cost: string | number): void {}
 }
 class CI_Token extends CI {
@@ -435,7 +491,7 @@ class CI_Token extends CI {
     return undefined as CenterText;
   }
 
-  override setPriceBar(info: CardInfo2, ty?: number, color?: string): void {  }
+  override setPriceBar(info: CardInfo2, color?: string): void {  }
 
   override setCost(cost: string | number): void {
     if (cost === null) return;
@@ -453,6 +509,7 @@ class CI_Token extends CI {
 
 /** holds all the context; use a factory to make a Card (or CardImage?) based on supplied CardInfo */
 export class CardMaker {
+  nbsp = `${'\u00A0'}`;    // unicode NBSP
   transitColor = 'rgb(180,180,180)';    // very light grey
   comTransitColor = 'rgb(180,120,80)';  // Brown/Grey
 
@@ -481,6 +538,7 @@ export class CardMaker {
   textSize = 50;
   typeSize = 40;
   /** radius of Coin */coinSize = 45;
+  priceBarSize = 2 * (this.coinSize + 5);
   vpSize = 70;
   dirSize = 400; // font size! (and then shrink-to-fit)
 
