@@ -1,5 +1,5 @@
 import { C, F } from "@thegraid/common-lib";
-import { AlphaMaskFilter, Bitmap, Container, Graphics, Text } from "@thegraid/easeljs-module";
+import { AlphaMaskFilter, Bitmap, Container, Shape, Text } from "@thegraid/easeljs-module";
 import { GridSpec, ImageGrid } from "./image-grid";
 import { CenterText, CircleShape, EllipseShape, PaintableShape, RectShape } from "./shapes";
 import { NamedObject } from "./game-play";
@@ -25,6 +25,22 @@ type TWEAKS = {
   font?: string, lineno?: number, color?: string,
   bold?: boolean, dx?: number, dy?: number, baseline?: BASELINE
 };
+type XTEXT = [text: string, x: number, y: number, justify: 'LEFTJ' | 'CENTER' | 'RIGHTJ', size: number, fontname: string, color: string, ...rest: any[]];
+type XLINE = [y: number, color: string, margin: number, thick: number];
+type LVAL = string|number|any[];
+type EXTRAS = {
+  text?: XTEXT,
+  line?: XLINE,
+  vp?: LVAL,
+  cardProps?: any,
+  ext?: any,
+  image?: LVAL,
+  step?: LVAL,
+  subtype?: LVAL,
+  filen?: LVAL,
+  xname?: LVAL,
+  textLow?: any };
+
 const TokenTypes = [
   'Debt',
   'house',
@@ -102,7 +118,7 @@ export interface CardInfo2 {
   ty?: number;        // top-band (60)
   by?: number;        // bottom-band (60)
 
-  extras?: object;    // extracted to textLow, ispec, props, etc.
+  extras?: EXTRAS[];    // extracted to textLow, ispec, props, etc.
   path?: string;      // name of created card image (.png)
   image?: HTMLImageElement; // loaded card image; from citymap/gimp
   imagePromise?: Promise<HTMLImageElement> // waiting for image to load from disk
@@ -128,12 +144,13 @@ export class CI extends Container {
     this.makeMaskCanvas(bleed);
     this.makeBase(); // includes cache();
     this.setTitle(cardInfo.name);
-    this.setType(cardInfo.type, cardInfo.extras);
+    this.setType(cardInfo.type);
     this.setCost(cardInfo.cost);
     this.setVP(cardInfo.vp);
     this.setSubType(cardInfo.subtype, { lineno: 1 });
     this.setPriceBar(cardInfo)
     this.setText(cardInfo.text)
+    this.setExtras(cardInfo.extras)
     this.updateCache();
   }
 
@@ -151,6 +168,35 @@ export class CI extends Container {
   getBitmap() {
     return new Bitmap(this.cacheCanvas);
   }
+
+  maskr: RectShape;
+  maskCanvas: HTMLCanvasElement;
+  /** RoundedRect for CardImage boundary. */
+  makeMaskCanvas(bleed = this.cm.bleed, r = this.cm.radi, scale = 1) {
+    let { w, h } = { w: this.cardw, h: this.cardh };
+    const { x, y } = { x: -w / 2, y: -h / 2 };
+    const maskr = this.maskr = new RectShape({ x, y, w, h, r: r + bleed }, C.BLACK, ''); // with setBounds()
+    maskr.cache(x, y, w, h, scale);
+    this.maskCanvas = maskr.cacheCanvas as HTMLCanvasElement;
+    this.setBounds(x, y, w, h);
+  }
+  get ty() { return this.cardInfo.ty ?? this.cm.topBand }
+  get by() { return this.cardInfo.by ?? this.cm.bottomBand }
+
+  // card-make-image-background (ty, by, color)
+  makeBase() {
+    const color = this.cardInfo.color ?? 'pink';
+    const { x, y, width: w, height: h } = this.getBounds();
+    this.baseShape = new RectShape({ x, y, w, h }, undefined, '');
+    const ty = this.ty; // default top-band
+    const by = this.by;
+    const tband = new RectShape({ x, y: - h / 2, w, h: ty }, color, '');
+    const bband = new RectShape({ x, y: h / 2 - by, w, h: by }, color, '');
+    this.filters = [ new AlphaMaskFilter(this.maskCanvas)]; // implicit "destination-in"
+    this.addChild(this.baseShape, tband, bband);
+    this.cache(x, y, w, h);
+  }
+
   // https://stackoverflow.com/questions/64583689/setting-font-weight-on-canvas-text
   composeFontName(size: number, fam_wght: string, ) {
     // extract weight info, compose: ${style} ${weight} ${family}
@@ -179,7 +225,7 @@ export class CI extends Container {
   /** setText [Centered] with Tweaks: { color, dx, dy, lineno, baseline, align} */
   setTextTweaks(text: string | Text, fontsize: number, fontname: string, tweaks?: TWEAKS) {
     const { color, dx, dy, lineno, baseline, align } = tweaks ?? {};
-    const text0 = (text instanceof Text) ? text.text : text;
+    // const text0 = (text instanceof Text) ? text.text : text;
     const cText = (text instanceof Text) ? text : this.makeText(text, fontsize, fontname, color ?? C.BLACK);
     const liney = lineno ? lineno * cText.getMeasuredLineHeight() : 0;
     cText.textBaseline = (baseline ?? 'middle'); // 'top' | 'bottom'
@@ -201,7 +247,7 @@ export class CI extends Container {
   //  line=0 is always CARD-TYPE-SIZE (no shrink) [???]
   //  line=1 starts below that, and may be shrunk.
   /** set Type centered in bottomBand; subType on lineno. */
-  setType(type: string, tweaks?: { lineno?: number, color?: string } & TWEAKS) {
+  setType(type: string, tweaks?: TWEAKS) {
     const color = tweaks?.color ?? C.BLACK;
     const xwide = this.cardw - (2 * this.cm.edge) - 2.2 * this.cm.coinSize;
     const text = this.makeText(type, this.cm.typeSize, this.cm.typeFont, color, xwide);
@@ -328,32 +374,27 @@ export class CI extends Container {
     }
   }
 
-  maskr: RectShape;
-  maskCanvas: HTMLCanvasElement;
-  /** RoundedRect for CardImage boundary. */
-  makeMaskCanvas(bleed = this.cm.bleed, r = this.cm.radi, scale = 1) {
-    let { w, h } = { w: this.cardw, h: this.cardh };
-    const { x, y } = { x: -w / 2, y: -h / 2 };
-    const maskr = this.maskr = new RectShape({ x, y, w, h, r: r + bleed }, C.BLACK, ''); // with setBounds()
-    maskr.cache(x, y, w, h, scale);
-    this.maskCanvas = maskr.cacheCanvas as HTMLCanvasElement;
-    this.setBounds(x, y, w, h);
+  setLine(liney: number, color: string, margin: number, thick: number) {
+    const line = new Shape();
+    const x0 = margin - this.cardw;
+    line.graphics.mt(x0, liney).lt(-x0, liney);//
+    this.addChild(line);
   }
-  get ty() { return this.cardInfo.ty ?? this.cm.topBand }
-  get by() { return this.cardInfo.by ?? this.cm.bottomBand }
 
-  // card-make-image-background (ty, by, color)
-  makeBase() {
-    const color = this.cardInfo.color ?? 'pink';
-    const { x, y, width: w, height: h } = this.getBounds();
-    this.baseShape = new RectShape({ x, y, w, h }, undefined, '');
-    const ty = this.ty; // default top-band
-    const by = this.by;
-    const tband = new RectShape({ x, y: - h / 2, w, h: ty }, color, '');
-    const bband = new RectShape({ x, y: h / 2 - by, w, h: by }, color, '');
-    this.filters = [ new AlphaMaskFilter(this.maskCanvas)]; // implicit "destination-in"
-    this.addChild(this.baseShape, tband, bband);
-    this.cache(x, y, w, h);
+  setExtras(extras: EXTRAS[]) {
+    extras?.forEach((extra: EXTRAS) =>{
+      const exline: XLINE = extra.line;
+      const extext: XTEXT = extra.text;
+      if (exline) this.setLine(...exline);
+      if (extext) {
+        const [text, dx0, dy0, justify, size, fontname, color, ...rest] = extext;
+        const dx = ((dx0 < 0) ? dx0 + this.cardw : dx0) - this.cardw / 2;
+        const dy = dy0 - this.cardh / 2;
+        const font = (fontname === 'TEXTFONT') ? this.cm.textFont : fontname;
+        const align = (justify === 'LEFTJ') ? 'left' : (justify === 'RIGHTJ') ? 'right' : (justify=== 'CENTER') ? 'center' : undefined;
+        this.setTextTweaks(text, size, font, { color, dx, dy, align });
+      }
+    })
   }
 }
 class CI_Tile extends CI {
