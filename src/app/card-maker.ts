@@ -27,7 +27,7 @@ type TWEAKS = {
 };
 // type TWEAK_KEY = keyof TWEAKS;
 // type TWEAK = { [key in TWEAK_KEY]?: string | number };
-type XTEXT = [text: string, x?: number | 'center', y?: number | 'center', justify?: 'LEFTJ' | 'CENTER' | 'RIGHTJ', size?: number, fontname?: string, color?: string, rest?: TWEAKS];
+type XTEXT = [text: string, x?: number | 'center', y?: number | 'center' | 'top', justify?: 'LEFTJ' | 'CENTER' | 'RIGHTJ', size?: number, fontname?: string, color?: string, rest?: TWEAKS];
 type XLINE = [y: number, color?: string, margin?: number, thick?: number];
 type LVAL = string|number|any[];
 type EXTRAS = {
@@ -240,27 +240,24 @@ export class CI extends Container {
   }
 
   /** addChild(coinObj) at return end XY; next Text starts there. */
-  setTextWithCoins0(line: string, fontn: string, lineno: number, liney: number, tweaks: TWEAKS) {
+  setTextWithCoins0(line: string, lineh: number, fontn: string, lineno: number, dy: number, tweaks: TWEAKS) {
     const linet = new Text(line, fontn);
-    const lineh = linet.lineHeight;
-    const coinr = lineh / 2;             // pixel height of font. (1.2 * M-width)
+    const coinr = .47 * lineh;           // lineh = pixel height of font = (1.2 * M-width)
     const coindx = coinr * 2 + 0;        // fudge as circle replaces '$v'
     const linew = linet.getMeasuredWidth();
-    // const { width } = linet.getBounds()
-    let linex = -linew / 2;          // full line will be centered.
-    const frags = line.split('$');
-    frags.forEach((frag, n) => {     // ASSERT: frag has no newline
-      const dx = linex, dy = liney + lineno * lineh;
+    const cy = dy;
+    let dx = -linew / 2;                 // start at left of centered linew.
+    line.split('$').forEach((frag, n, frags) => {     // ASSERT: frag has no newline
       const fragt = this.setTextTweaks(frag, undefined, fontn, {...tweaks, dx, dy, align: 'left' });
-      linex += fragt.getMeasuredWidth();
+      dx += fragt.getMeasuredWidth();
       if (n + 1 < frags.length) {
         // prep for next frag:
         const vre = /^\d+/;
         const fragn = frags[n + 1];  // if frag has '$', then fragn starts with /^\d+/
         const val = fragn.match(vre)?.[0] ?? '?';
+        const coin = this.setCoin(val, coinr, dx + coinr, cy - lineh * .08);
         frags[n + 1] = fragn.replace(vre, '');
-        const coin = this.setCoin(val, coinr, linex + coinr, liney + coinr + (lineno - .5) * lineh);
-        linex = linex + coindx;
+        dx = dx + coindx;
       }
     })
   }
@@ -268,23 +265,24 @@ export class CI extends Container {
   /** setText [Centered] with Tweaks: { color, dx, dy, lineno, baseline, align, nlh}
    * @param fontSize is fed to makeText (with xwide === undefined)
    * @param fontName is fed to makeText
-  */
+   * @param tweaks: dy: initial y-coord, lineno: advances by lineh;
+   */
   setTextTweaks(text: string | Text, fontsize: number, fontname: string, tweaks?: TWEAKS) {
     const { color, dx, dy, lineno, baseline, align, nlh } = tweaks ?? {};
     const cText = (text instanceof Text) ? text : this.makeText(text, fontsize, fontname, color ?? C.BLACK);
-    const fname = cText.font, fsize = this.fontSize(fname);
+    const fname = cText.font;            // shrink-resolved fontName
     const lineh = cText.lineHeight = nlh ?? (cText.lineHeight > 0 ? cText.lineHeight : cText.getMeasuredLineHeight());
-    const liney = (lineno ?? 0) * lineh;
+    const liney = (lineno ?? 0) * lineh; // first
     const rText = cText.text;
-    const tweak2 = {...tweaks, baseline: (baseline ?? 'middle'), align: (align ?? 'center') }
-    // if (rText.includes('$')) {
-    //   const lines = rText.split('\n');
-    //   lines.forEach((line, lineinc) => {
-    //     const liney2 = (dy ?? 0) + liney + lineinc * lineh;
-    //     this.setTextWithCoins0(line, fname, lineno + lineinc, liney2, tweak2);
-    //   })
-    //   return undefined;
-    // }
+    const tweak2 = {...tweaks, lineno: 0, baseline: (baseline ?? 'middle'), align: (align ?? 'center') }
+    if (rText.includes('$')) {
+      const lines = rText.split('\n');
+      lines.forEach((line, lineinc) => {
+        const dy2 = (dy ?? 0) + liney + lineinc * lineh;
+        this.setTextWithCoins0(line, lineh, fname, lineinc, dy2, tweak2);
+      })
+      return undefined;
+    }
     cText.textBaseline = (baseline ?? 'middle'); // 'top' | 'bottom'
     cText.textAlign = (align ?? 'center');
     cText.x += (dx ?? 0);
@@ -308,10 +306,8 @@ export class CI extends Container {
     const color = tweaks?.color ?? C.BLACK;
     const xwide = this.cardw - (2 * this.cm.edge) - 2.2 * this.cm.coinSize;
     const text = this.makeText(type, this.cm.typeSize, this.cm.typeFont, color, xwide);
-    const lineh = text.getMeasuredLineHeight();
-    // const offset = (tweaks?.lineno ? tweaks.lineno * lineh : 0);
-    this.setTextTweaks(text, undefined, undefined, { baseline: 'bottom', ...tweaks });
-    text.y += this.cardh / 2 - (this.cm.bottomBand / 2);
+    const dy = this.cardh / 2 - (this.cm.bottomBand / 2);
+    this.setTextTweaks(text, undefined, undefined, { baseline: 'bottom', dy, ...tweaks });
     return text;
   }
 
@@ -451,18 +447,19 @@ export class CI extends Container {
       const extext: XTEXT = extra.text;
       if (extext) {
         const [text, dx0, dy0, justify, size, fontname, color, rest] = extext;
+        const top = this.cm.topBand + this.cm.priceBarSize;
         const dx1 = (dx0 === 'center') ? this.cardw / 2 : dx0 as number;
-        const dy1 = (dy0 === 'center') ? this.cardh / 2 : dy0 as number;
+        const dy1 = (dy0 === 'center') ? this.cardh / 2 : (dy0 === 'top') ? top : dy0 as number;
         const dx = ((dx1 < 0) ? dx1 + this.cardw : dx1) - this.cardw / 2;
         const dy = dy1 - this.cardh / 2;
         const fname = (fontname === 'TEXTFONT') ? this.cm.textFont : fontname;
         const align = (justify === 'LEFTJ') ? 'left' : (justify === 'RIGHTJ') ? 'right' : (justify=== 'CENTER') ? 'center' : undefined;
-        const fsize = (size !== undefined) ? size : this.cm.textSize;
+        const fsize = (size) ? size : this.cm.textSize;
         this.setTextTweaks(text, fsize, fname, { color, dx, dy, align, ...rest });
       }
       const exvp = extra.vp; // XTEXT, string, number (ignore simple string/number; done setVP())
       if (typeof exvp === 'object') {
-        const [text, dx0, dy0, justify, size, fontname, color, rest] = exvp;
+        const [text, dx0, dy0, justify, size, fontname, color, tweaks] = exvp;
         const dx1 = (dx0 === 'center') ? this.cardw / 2 : dx0 as number;
         const dy1 = (dy0 === 'center') ? this.cardw / 2 : dx0 as number;
         const x0 = this.cardw / 2 - this.cm.vpSize, y0 = this.cardh / 2 - this.cm.vpSize;
@@ -470,7 +467,7 @@ export class CI extends Container {
         const dy = y0 + dy1;
         const font = (fontname === 'TEXTFONT') ? this.cm.vpFont : fontname;
         const align = (justify === 'LEFTJ') ? 'left' : (justify === 'RIGHTJ') ? 'right' : (justify=== 'CENTER') ? 'center' : undefined;
-        this.setTextTweaks(text, size, font, { color, dx, dy, align, ...rest });
+        this.setTextTweaks(text, size, font, { color, dx, dy, align, ...tweaks });
       }
       const textLow = extra.textLow;
       if (textLow) {
