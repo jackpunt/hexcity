@@ -136,7 +136,6 @@ export interface CardInfo extends CardInfo2 {
 
 /** CardImage (for a Card) based on CardInfo */
 export class CI extends Container {
-  baseShape: PaintableShape;
   constructor(public cm: CardMaker, public cardInfo: CardInfo2, scale = cm.scale) {
     super();
     this.scaleX = this.scaleY = scale;
@@ -186,6 +185,7 @@ export class CI extends Container {
   get ty() { return this.cardInfo.ty ?? this.cm.topBand }
   get by() { return this.cardInfo.by ?? this.cm.bottomBand }
 
+  baseShape: PaintableShape;
   // card-make-image-background (ty, by, color)
   makeBase() {
     const color = this.cardInfo.color ?? 'pink';
@@ -222,39 +222,74 @@ export class CI extends Container {
     return (width <= xwide) ? fontsize : Math.floor(fontsize * xwide / width);
   }
 
-  /** make Text object, optionally shrink to fit xwide. */
-  makeText(text: string, size0: number, fam_wght = this.cm.textFont, color = C.BLACK, xwide?: number) {
-    const fontname0 = this.composeFontName(size0, fam_wght);
+  fontSize(fontSpec: string) {
+    const pixels = fontSpec.match(/(\d+)px/)?.[1];
+    return Number.parseInt(pixels);
+  }
+
+  /** make Text object, optionally shrink to fit xwide.
+   * @param size0: requested size of Font, shrink to fit xwide;
+   * @param fam_wght (if fully resolved, supply size0 = xwide = undefined)
+   * @param xwide: max width of Text, shrink fontSize fit. supply undefined if fam_wght is fully resolved.
+   */
+  makeText(text: string, size0?: number, fam_wght = this.cm.textFont, color = C.BLACK, xwide?: number) {
+    const fontname0 = (size0 !== undefined) ? this.composeFontName(size0, fam_wght) : fam_wght;
     const fontsize = (xwide !== undefined) ? this.shrinkFontForWidth(xwide, text, size0, fontname0) : size0;
     const fontname = (xwide !== undefined) ? this.composeFontName(fontsize, fam_wght) : fontname0;
     return new CenterText(text, fontname, color);
   }
 
-  /** setText [Centered] with Tweaks: { color, dx, dy, lineno, baseline, align, nlh} */
+  /** addChild(coinObj) at return end XY; next Text starts there. */
+  setTextWithCoins0(line: string, fontn: string, lineno: number, liney: number, tweaks: TWEAKS) {
+    const linet = new Text(line, fontn);
+    const lineh = linet.lineHeight;
+    const coinr = lineh / 2;             // pixel height of font. (1.2 * M-width)
+    const coindx = coinr * 2 + 0;        // fudge as circle replaces '$v'
+    const linew = linet.getMeasuredWidth();
+    // const { width } = linet.getBounds()
+    let linex = -linew / 2;          // full line will be centered.
+    const frags = line.split('$');
+    frags.forEach((frag, n) => {     // ASSERT: frag has no newline
+      const dx = linex, dy = liney + lineno * lineh;
+      const fragt = this.setTextTweaks(frag, undefined, fontn, {...tweaks, dx, dy, align: 'left' });
+      linex += fragt.getMeasuredWidth();
+      if (n + 1 < frags.length) {
+        // prep for next frag:
+        const vre = /^\d+/;
+        const fragn = frags[n + 1];  // if frag has '$', then fragn starts with /^\d+/
+        const val = fragn.match(vre)?.[0] ?? '?';
+        frags[n + 1] = fragn.replace(vre, '');
+        const coin = this.setCoin(val, coinr, linex + coinr, liney + coinr + (lineno - .5) * lineh);
+        linex = linex + coindx;
+      }
+    })
+  }
+
+  /** setText [Centered] with Tweaks: { color, dx, dy, lineno, baseline, align, nlh}
+   * @param fontSize is fed to makeText (with xwide === undefined)
+   * @param fontName is fed to makeText
+  */
   setTextTweaks(text: string | Text, fontsize: number, fontname: string, tweaks?: TWEAKS) {
     const { color, dx, dy, lineno, baseline, align, nlh } = tweaks ?? {};
     const cText = (text instanceof Text) ? text : this.makeText(text, fontsize, fontname, color ?? C.BLACK);
-    const lineHeight = nlh ? (cText.lineHeight = nlh) : cText.getMeasuredLineHeight();
-    const liney = lineno ? lineno * lineHeight : 0;
+    const fname = cText.font, fsize = this.fontSize(fname);
+    const lineh = cText.lineHeight = nlh ?? (cText.lineHeight > 0 ? cText.lineHeight : cText.getMeasuredLineHeight());
+    const liney = (lineno ?? 0) * lineh;
+    const rText = cText.text;
+    const tweak2 = {...tweaks, baseline: (baseline ?? 'middle'), align: (align ?? 'center') }
+    // if (rText.includes('$')) {
+    //   const lines = rText.split('\n');
+    //   lines.forEach((line, lineinc) => {
+    //     const liney2 = (dy ?? 0) + liney + lineinc * lineh;
+    //     this.setTextWithCoins0(line, fname, lineno + lineinc, liney2, tweak2);
+    //   })
+    //   return undefined;
+    // }
     cText.textBaseline = (baseline ?? 'middle'); // 'top' | 'bottom'
     cText.textAlign = (align ?? 'center');
     cText.x += (dx ?? 0);
     cText.y += ((dy ?? 0) + liney);
     return this.addChild(cText);
-  }
-
-  // will not work... unless we measure each frag, which is what original code does.
-  replaceAndRecordCoins(text: string) {
-    const rv = [];
-    const vre = /\$(\d+)/dg;
-    let lineno = 0, nxt = 0;
-    const match = vre.exec(text) as any as
-    [dval: string, val: string, index: number, input: string, groups: any, indices: [b: number, e: number]];
-    while (match) {
-      const [dval, val, index, input, groups, indices] = match;
-      lineno += (input.substring(nxt, index).split('\n').length -1);
-      rv.push({})
-    }
   }
 
   /** set Title centered in topBand */
@@ -362,17 +397,18 @@ export class CI extends Container {
   setText(text: string | { key0?: string, size?: number }, y0?: number) {
     const tlines = ((typeof text === 'string') ? text : text?.key0) ?? undefined;
     if (!tlines) return;
-    const tsize = (typeof text !== 'string') ? text?.size ?? this.cm.textSize : this.cm.textSize;
+    const tsize = (typeof text !== 'string') ? (text?.size ?? this.cm.textSize) : this.cm.textSize;
     const tfont = this.cm.textFont;
-    const y = (y0 !== undefined) ? y0 : -this.cardh / 2 + this.cm.topBand + this.cm.priceBarSize + tsize;
-    const lines = tlines.split('\n'); // TODO: vertical centering
-    lines.forEach((line: string, lineno: number) => {
-      if (!line.includes('$')) {
-        this.setTextTweaks(line, tsize, tfont, { lineno, dy: y });
-      } else {
-        this.setTextWithCoins(line, tsize, tfont, lineno, y)
-      }
-    })
+    const dy = y0 ?? -this.cardh / 2 + this.cm.topBand + this.cm.priceBarSize + tsize;
+    this.setTextTweaks(tlines, tsize, tfont, { dy })
+    // const lines = tlines.split('\n'); // TODO: vertical centering
+    // lines.forEach((line: string, lineno: number) => {
+    //   if (!line.includes('$')) {
+    //     this.setTextTweaks(line, tsize, tfont, { lineno, dy });
+    //   } else {
+    //     this.setTextWithCoins(line, tsize, tfont, lineno, dy)
+    //   }
+    // })
   }
 
   setCost(cost: number | string) {
@@ -442,15 +478,16 @@ export class CI extends Container {
         const [text, ...tweaks_ary] = (typeof textLow === 'string') ? [textLow] : textLow;
         let tweaks = {} as TWEAKS;
         tweaks_ary.forEach(elt => tweaks = { ...elt, ...tweaks });
-        const size0 = tweaks.size ?? this.cm.textSize, fontn = this.cm.textFont, lead = size0 / 4;
-        const text0 = this.makeText(text, size0, fontn, tweaks.color ?? C.BLACK, xwide);
-        const lineh = text0.getMeasuredLineHeight();
+        const size0 = tweaks.size ?? this.cm.textSize, font0 = this.cm.textFont, lead = size0 / 4;
+        const text0 = this.makeText(text, size0, font0, tweaks.color ?? C.BLACK, xwide);
+        const fontn = text0.font;
+        const lineh = text0.lineHeight = (tweaks.nlh ?? text0.getMeasuredLineHeight());
         const height = text0.getMeasuredHeight(); // multi-line...
         const liney = this.cardh - this.cm.bottomBand - height - lead - lead - thick / 2;
         const texty = liney + thick / 2 + lead  + lineh / 2 - this.cardh / 2;
         this.setLine(liney, undefined, undefined, thick);
         tweaks.dy = texty;
-        this.setTextTweaks(text0, size0, fontn, tweaks);
+        this.setTextTweaks(text0, undefined, fontn, tweaks);
       }
       const coin = extra.coin;
       if (coin) {
