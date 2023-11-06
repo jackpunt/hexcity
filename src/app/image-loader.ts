@@ -12,7 +12,7 @@ export class ImageLoader {
     const { root } = this;
     const url = `${root}${fname}.${ext}`;
     //console.log(stime(`image-loader: try loadImage`), url)
-    return new Promise((res, rej) => {
+    return new Promise<HTMLImageElement>((res, rej) => {
       const img: HTMLImageElement = new Image();
       img.onload = (evt => res(img));
       img.onerror = ((err) => rej(`failed to load ${url} -> ${err}`));
@@ -21,15 +21,22 @@ export class ImageLoader {
   }
 
   /**
-   * load all imageUrls, then invoke callback(images: HTMLImageElement[])
-   * @param imageUrls
-   * @param cb
+   * load all fnames, return Promise.all()
+   * @param fnames
    */
-  loadImages(fnames: string[], cb: (images: HTMLImageElement[]) => void) {
-    let promises = fnames.map(fname => this.loadImage(fname));
-    Promise.all(promises).then((values) => cb(values), (reason) => {
-      console.error(stime(this, `.loadImages:`), reason);
-    })
+  loadImages(fnames = this.fnames, ext = this.ext) {
+    let promises = fnames.map(fname => this.loadImage(fname, ext));
+    return Promise.all(promises).then(
+      (images: HTMLImageElement[]) => {
+        fnames.forEach((filename, n) => {
+          images[n][S.Aname] = filename;
+          this.imap.set(filename, images[n])
+        })
+        return this.imap;
+      }, (reason) => {
+        console.error(stime(this, `loadImages failed: ${reason}`));
+        return this.imap;
+      });
   }
 
   /**
@@ -43,20 +50,15 @@ export class ImageLoader {
    * @param cb invoked with (imap)
    */
   constructor(args: { root: string, fnames: string[], ext: string },
-    imap = new Map<string, HTMLImageElement>(),
+    public imap = new Map<string, HTMLImageElement>(),
     cb?: (imap: Map<string, HTMLImageElement>) => void)
   {
     this.root = args.root;
     this.fnames = args.fnames;
     this.ext = args.ext;
-    const { fnames } = args;
-    this.loadImages(fnames, (images: HTMLImageElement[]) => {
-      fnames.forEach((fn, n) => {
-        images[n][S.Aname] = fn;
-        imap.set(fn, images[n])
-      })
-      if (cb) cb(imap)
-    })
+    if (cb) {
+      this.loadImages().then(imap => cb(imap));
+    }
   }
   readonly root: string;
   readonly fnames: string[];
