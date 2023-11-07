@@ -44,6 +44,7 @@ export class GameSetup {
   policyNames: string[];  // names of Policy cards for debug/test spec
   eventNames: string[];  // names of Event cards for debug/test spec
   tileNames: string[];  // names of Tile cards for debug/test spec
+  roadNames: string[];  // names of Tile cards for debug/test spec
   ghost: string;
 
   _netState = " " // or "yes" or "ref"
@@ -207,6 +208,8 @@ export class GameSetup {
     this.policyNames = findNames(this.table.policyCards, (c) => c.isPolicy())
     this.eventNames = findNames(this.table.policyCards, (c) => c.isEvent())
     this.tileNames = findNames(this.table.tileCards, (c) => c.isTile())
+    const roadCards = TP.roadsInEvents ? this.table.policyCards : this.table.tileCards;
+    this.roadNames = findNames(roadCards, (c) => c.type === 'Road')
 
     if (loadCards) { // was hacked back @ "new stime (in CC)"
       // flatten promiseArrays:
@@ -284,6 +287,13 @@ export class GameSetup {
       gui.makeParamSpec("drawEvent", this.eventNames)
       gui.spec("getEvent").onChange = (item: ParamItem) => { getCardByName(item, this.table.policyDeck)}
       gui.spec("drawEvent").onChange = (item: ParamItem) => { drawByName(item, this.table.policyDeck)}
+    }
+    if (this.roadNames.length > 1) {
+      gui.makeParamSpec("getRoad", this.roadNames)
+      gui.makeParamSpec("drawRoad", this.roadNames)
+      const roadDeck = TP.roadsInEvents ? this.table.policyDeck : this.table.tileDeck;
+      gui.spec("getRoad").onChange = (item: ParamItem) => { getCardByName(item, roadDeck)}
+      gui.spec("drawRoad").onChange = (item: ParamItem) => { drawByName(item, roadDeck)}
     }
     gui.makeParamSpec("moveDwell", [600, 300, 100])
     gui.makeParamSpec("flipDwell", [200, 100, 75])
