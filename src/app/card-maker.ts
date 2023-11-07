@@ -159,8 +159,10 @@ export class CI extends Container {
     'Home', 'ROT-L', 'ROT-R', 'THRU-S', 'TURN-L', 'TURN-R'
   ];
   static images = { root: '/assets/main/images/ximage/', fnames: CI.fnames, ext: 'png'};
-  static imageLoader = new ImageLoader(CI.images, undefined, ); // (imap) => { console.log(`CI.imageloader:`, imap)}
+  static imageLoader = new ImageLoader(CI.images, (imap) => { console.log(`CI.imageloader:`, imap) });
   static ipser = 0;
+
+  ciPromise: EzPromise<CI>;
 
   constructor(public cm: CardMaker, public cardInfo: CardInfo2, scale = cm.scale) {
     super();
@@ -170,14 +172,7 @@ export class CI extends Container {
     this.setWidthHeight(cardInfo, cm);
     const bleed = cm.bleed;
     this.makeMaskCanvas(bleed);
-    this.makeBase(); // includes cache();
-    this.setTitle(cardInfo.name);
-    this.setType(cardInfo.type);
-    this.setCost(cardInfo.cost);
-    this.setVP(cardInfo.vp);
-    this.setSubType(cardInfo.subtype, { lineno: 1 });
-    this.setPriceBar(cardInfo);
-    this.setText(cardInfo.text);
+    this.setContent(cardInfo);
     this.updateCache();   // what we have so far...
     this.ciPromise = new EzPromise<CI>();
     const iname = this.iname;
@@ -188,12 +183,22 @@ export class CI extends Container {
     }
     this.finishWithXimage(ximage);
   }
-  ciPromise: EzPromise<CI>;
 
   get iname() {
     const imageElt = this.cardInfo.extras?.find(elt => elt.image !== undefined);
     const fname = imageElt && (imageElt.image?.[0] ?? this.cardInfo.path)?.split('.')[0];
     return fname;
+  }
+
+  setContent(cardInfo: CardInfo2) {
+    this.makeBase(); // includes cache();
+    this.setTitle(cardInfo.name);
+    this.setType(cardInfo.type);
+    this.setCost(cardInfo.cost);
+    this.setVP(cardInfo.vp);
+    this.setSubType(cardInfo.subtype, { lineno: 1 });
+    this.setPriceBar(cardInfo);
+    this.setText(cardInfo.text);
   }
 
   ximage: HTMLImageElement;
@@ -232,35 +237,30 @@ export class CI extends Container {
     this.cardh = p ? Math.max(cm.cardh, cm.cardw) : Math.min(cm.cardh, cm.cardw);
   }
 
-  getBitmap() {
-    return new Bitmap(this.cacheCanvas);
-  }
-
-  maskr: RectShape;
   maskCanvas: HTMLCanvasElement;
   /** RoundedRect for CardImage boundary. */
   makeMaskCanvas(bleed = this.cm.bleed, r = this.cm.radi, scale = 1) {
     let { w, h } = { w: this.cardw, h: this.cardh };
     const { x, y } = { x: -w / 2, y: -h / 2 };
-    const maskr = this.maskr = new RectShape({ x, y, w, h, r: r + bleed }, C.BLACK, ''); // with setBounds()
+    const maskr = new RectShape({ x, y, w, h, r: r + bleed }, C.BLACK, ''); // with setBounds()
     maskr.cache(x, y, w, h, scale);
     this.maskCanvas = maskr.cacheCanvas as HTMLCanvasElement;
     this.setBounds(x, y, w, h);
+    this.filters = [ new AlphaMaskFilter(this.maskCanvas)]; // implicit "destination-in"
   }
   get ty() { return this.cardInfo.ty ?? this.cm.topBand }
   get by() { return this.cardInfo.by ?? this.cm.bottomBand }
 
   baseShape: PaintableShape;
-  // card-make-image-background (ty, by, color)
-  makeBase() {
-    const color = this.cardInfo.color ?? 'pink';
+
+  /** make baseShape, topBand and bottomBand; cache(...getBounds()) */
+  makeBase(color = this.cardInfo.color ?? 'pink') {
     const { x, y, width: w, height: h } = this.getBounds();
     this.baseShape = new RectShape({ x, y, w, h }, undefined, '');
     const ty = this.ty; // default top-band
     const by = this.by;
     const tband = new RectShape({ x, y: - h / 2, w, h: ty }, color, '');
     const bband = new RectShape({ x, y: h / 2 - by, w, h: by }, color, '');
-    this.filters = [ new AlphaMaskFilter(this.maskCanvas)]; // implicit "destination-in"
     this.addChild(this.baseShape, tband, bband);
     this.cache(x, y, w, h);
   }
@@ -383,7 +383,7 @@ export class CI extends Container {
     const color = tweaks?.color ?? C.BLACK;
     const xwide = this.cardw - (2 * this.cm.edge) - 2.2 * this.cm.coinSize;
     const text = this.makeText(type, this.cm.typeSize, this.cm.typeFont, color, xwide);
-    const dy = this.cardh / 2 - (this.cm.bottomBand / 2);
+    const dy = this.cardh / 2 - (this.by / 2);
     this.setTextTweaks(text, undefined, undefined, { baseline: 'bottom', dy, ...tweaks });
     return text;
   }
@@ -393,14 +393,14 @@ export class CI extends Container {
   }
 
   setPriceBar(info: CardInfo2, color = 'rgb(100,100,100)') {
-    const { x, y, width: w, height: h } = this.getBounds();
+    const { x, y, width: w, height } = this.getBounds();
     const { step, stop, rent } = info;
     if (step === undefined && stop === undefined && rent === undefined) return;
-    const size = this.cm.coinSize, ty = this.cm.priceBarSize;
-    const cy = ty / 2, cx = this.cardw / 2 - this.cm.edge - size;
+    const size = this.cm.coinSize, h = this.cm.priceBarSize;
+    const cy = h / 2, cx = this.cardw / 2 - this.cm.edge - size;
     const bar = new NamedContainer('PriceBar', 0, cy);
-    bar.y = this.cm.topBand - h / 2;
-    const band = new RectShape({ x, y: 0, w, h: ty }, color, '');
+    bar.y = this.ty - height / 2;
+    const band = new RectShape({ x, y: 0, w, h }, color, '');
     const stepc = (step === undefined || step === null) ? undefined : this.makeCoin(step, size, -cx, cy);
     const stopc = (stop === undefined || stop === null) ? undefined : this.makeCoin(stop, size, 0, cy);
     const rentc = (rent === undefined || rent === null) ? undefined : this.makeCoin(rent, size, cx, cy);
@@ -474,7 +474,7 @@ export class CI extends Container {
     if (!tlines) return;
     const tsize = (typeof text !== 'string') ? (text?.size ?? this.cm.textSize) : this.cm.textSize;
     const tfont = this.cm.textFont;
-    const dy = y0 ?? -this.cardh / 2 + this.cm.topBand + this.cm.priceBarSize + tsize;
+    const dy = y0 ?? -this.cardh / 2 + this.ty + this.cm.priceBarSize + tsize;
     const cText = this.cText = this.setTextTweaks(tlines, tsize, tfont, { dy });
     const lineh = cText.lineHeight;
     // this.setLine(this.cText.y - lineh / 2, 'YELLOW', undefined, 1);
@@ -485,7 +485,7 @@ export class CI extends Container {
   setXtraText(extext: XTEXT) {
     if (!extext) return;
     const [text, dx0, dy0, justify, size, fontname, color, rest] = extext;
-    const top = this.cm.topBand + this.cm.priceBarSize;
+    const top = this.ty + this.cm.priceBarSize;
     const dx1 = (dx0 === 'center') ? this.cardw / 2 : dx0 as number;
     const dy1 = (dy0 === 'center') ? this.cardh / 2 : (dy0 === 'top') ? top : dy0 as number;
     const dx = ((dx1 < 0) ? dx1 + this.cardw : dx1) - this.cardw / 2;
@@ -507,7 +507,7 @@ export class CI extends Container {
     const fontn = text0.font;
     const lineh = text0.lineHeight = (tweaks.nlh ?? text0.getMeasuredLineHeight());
     const height = text0.getMeasuredHeight(); // multi-line...
-    const liney = this.cardh / 2 - this.cm.bottomBand - height - lead - lead - thick / 2;
+    const liney = this.cardh / 2 - this.by - height - lead - lead - thick / 2;
     const texty = liney + thick / 2 + lead + lineh / 2;
     this.setLine(liney, undefined, undefined, thick);
     tweaks.dy = texty;
@@ -521,7 +521,7 @@ export class CI extends Container {
 
   ovals = {Lake: 'rgb(58,111,235)', Plaza: 'yellow', Park: 'rgb(21,180,0)', Playground: 'rgb(185,83,0)'}
   setOval(color: string, margin = 40) {
-    const y0 = this.cText_ymax, y1 = this.textLow_min ?? this.cardh / 2 - this.cm.bottomBand;
+    const y0 = this.cText_ymax, y1 = this.textLow_min ?? this.cardh / 2 - this.by;
     const rady = (y1 - y0 - this.cText.lineHeight) * .5;
     const rx = this.cardw / 2 - margin;
     const oval = new EllipseShape(color, rx, rady, '');
@@ -590,8 +590,8 @@ export class CI extends Container {
       const coin = extra.coin;
       if (coin) {
         const gap = this.cardh * .013;
-        const top = this.cm.topBand + this.cm.priceBarSize + gap;
-        const bot = this.cm.bottomBand + gap;
+        const top = this.ty + this.cm.priceBarSize + gap;
+        const bot = this.by + gap;
         const rady = (this.cardh - top - bot) / 2, cx = 0, cy = top + rady - this.cardh / 2;
         const oval = .8;
         this.setCoin(coin, rady, cx, cy, { oval });
@@ -616,8 +616,8 @@ export class CI extends Container {
       const cw = this.cardw, iw = ximage.width, mar = this.cm.edge;
       const ch = this.cardh, ih = ximage.height;
       const cl = mar - cw / 2, cr = cw / 2 - mar;
-      const ct = (this.cm.topBand + this.cm.priceBarSize - ch / 2);
-      const cb = ch / 2 - this.cm.bottomBand
+      const ct = (this.ty + this.cm.priceBarSize - ch / 2);
+      const cb = ch / 2 - this.by
       const normalx = (x) => x === 'left' ? cl : x === 'right' ? cr : x === 'center' ? 0 : x;
       const normaly = (y) => y === 'top' ? ct : y === 'bot' ? cb : y === 'center' ? 0 : y;
       // Assert: this.ximage is loaded.
@@ -626,6 +626,8 @@ export class CI extends Container {
       // Initialize as suitable for x, y === 'center' or x === 'card':
       let scalex = (typeof w === 'number') ? w / iw : 1;
       let scaley = (typeof h === 'number') ? h / ih : 1;
+      if (scalex < 0) scalex = scaley = -scalex; // use negative to lock scales
+      if (scaley < 0) scalex = scaley = -scaley;
       let bmx = (typeof x === 'number') ? x : center(cl, cr, iw * scalex);
       let bmy = ((typeof y === 'number') ? y - ch / 2 : center(ct, cb, ih * scaley));
 
@@ -667,11 +669,43 @@ class CI_Event extends CI {
 
 }
 class CI_Road extends CI {
-
+  // road, dots & dir use dotBand
+  sq = (this.cardh - (this.cardw - 2 * this.cm.edge)) / 2; // 113?
+  override get ty() { return this.sq + this.cm.bleed; } // height - 2*ty = (width - 2 * margin)
+  override get by() { return this.sq + this.cm.bleed; } // ty = by = ((width - 2 * margin) - height)
 }
 class CI_Home extends CI {
+  override makeBase(): void {
+    super.makeBase();
+    const color = this.cardInfo.props?.['rgbColor'] ?? 'blue';
+    const y0 = -this.cardh / 2 + this.ty + this.cm.priceBarSize;
+    const y1 = this.cardh / 2 - this.by ;
+    const x0 = -this.cardw / 2, x1 = this.cardw / 2;
+    const bg = new RectShape({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, color, '');
+    this.addChildAt(bg, 1);
+    this.updateCache();
+    // before check for iname:
+    if (!this.cardInfo.extras) this.cardInfo.extras = [];
+    this.cardInfo.extras.push({image: ["Home", null, null, null, -375]});
+    return;
+  }
+}
+class CI_Owner extends CI {
+
+  override makeBase(color = this.cardInfo.color ?? 'pink') {
+    const { x, y, width: w, height: h } = this.getBounds();
+    this.baseShape = new RectShape({ x, y, w, h }, color, '');
+    this.filters = [new AlphaMaskFilter(this.maskCanvas)]; // implicit "destination-in"
+    this.addChild(this.baseShape);
+    this.cache(x, y, w, h);
+  }
+
+  override setContent(cardInfo: CardInfo2): void {
+    this.makeBase();
+  }
 
 }
+
 class CI_Move extends CI {
 
 }
@@ -769,30 +803,36 @@ export class CardMaker {
   makeCard(info: CardInfo) {
     const type: CardType = info.type;
     switch (info.type) {
-      case 'Residential':
+      case 'Residential': {
+        if (info.name.startsWith('Home'))
+          return new CI_Home(this, info);
+        return new CI_Tile(this, info);
+      }
+
+      case 'Owner':  // for Flag
+        return new CI_Owner(this, info);
+
       case 'Financial':
       case 'Industrial':
       case 'Commercial':
       case 'Municipal':
       case 'Government':
       case 'High Tech':
-          return new CI_Tile(this, info);
+        return new CI_Tile(this, info);
 
       case 'Event':
       case 'Future Event':
       case 'Deferred':
       case 'Temp Policy':
       case 'Policy':
-          return new CI_Event(this, info); // landscape Event/Policy
-
+        return new CI_Event(this, info); // landscape Event/Policy
 
       case 'Road':
-          return new CI_Road(this, info);
+        return new CI_Road(this, info);
 
       case 'House':  // card-type-home
-          return new CI_Home(this, info);
+        return new CI_Home(this, info);
 
-      case 'Owner':  // for Flag
       case 'Distance':
         return new CI_Move(this, info);
 
