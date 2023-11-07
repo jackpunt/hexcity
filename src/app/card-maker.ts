@@ -4,7 +4,7 @@ import { EzPromise } from "@thegraid/ezpromise";
 import { NamedObject } from "./game-play";
 import { GridSpec, ImageGrid } from "./image-grid";
 import { ImageLoader } from "./image-loader";
-import { CenterText, EllipseShape, PaintableShape, RectShape } from "./shapes";
+import { CenterText, CircleShape, EllipseShape, PaintableShape, RectShape } from "./shapes";
 
 // (define BLACK  '(0    0   0))
 // (define GREY   '(128 128 128))
@@ -257,7 +257,7 @@ export class CI extends Container {
   makeBase(color = this.cardInfo.color ?? 'pink') {
     const { x, y, width: w, height: h } = this.getBounds();
     this.baseShape = new RectShape({ x, y, w, h }, undefined, '');
-    const ty = this.ty; // default top-band
+    const ty = this.ty; // top-band
     const by = this.by;
     const tband = new RectShape({ x, y: - h / 2, w, h: ty }, color, '');
     const bband = new RectShape({ x, y: h / 2 - by, w, h: by }, color, '');
@@ -587,7 +587,7 @@ export class CI extends Container {
 
       this.setTextLow(extra.textLow);
 
-      const coin = extra.coin;
+      const coin = extra.coin; // for Financial: ATM, Bank, etc
       if (coin) {
         const gap = this.cardh * .013;
         const top = this.ty + this.cm.priceBarSize + gap;
@@ -665,14 +665,18 @@ export class CI extends Container {
 class CI_Tile extends CI {
 
 }
+
+class CI_Square extends CI {
+  // road, dots & dir use dotBand
+  // for square of whitespace:
+  get sq() { return (this.cardh - this.cardw) / 2; }
+  override get ty() { return this.sq; } //
+  override get by() { return this.sq; } //
+}
 class CI_Event extends CI {
 
 }
-class CI_Road extends CI {
-  // road, dots & dir use dotBand
-  sq = (this.cardh - (this.cardw - 2 * this.cm.edge)) / 2; // 113?
-  override get ty() { return this.sq + this.cm.bleed; } // height - 2*ty = (width - 2 * margin)
-  override get by() { return this.sq + this.cm.bleed; } // ty = by = ((width - 2 * margin) - height)
+class CI_Road extends CI_Square {
 }
 class CI_Home extends CI {
   override makeBase(): void {
@@ -706,12 +710,43 @@ class CI_Owner extends CI {
 
 }
 
-class CI_Move extends CI {
-
+class CI_Dots extends CI_Square {
+  override setTitle(name: string): CenterText {
+    return super.setTitle(`${this.cardInfo.type} ${this.cardInfo.cost}`);
+  }
+  dotSize = 125;
+  dot_locs(size: number) {
+    const bleed = this.cm.bleed, safe = this.cm.safe, mar = this.cm.safe;
+    const xl = size + mar + safe - this.cardw / 2 + bleed;
+    const yt = size + mar + safe - this.cardh / 2 + this.ty;
+    return [
+      [0, 0], // element 0, not generally used...
+      [xl, yt], [0, yt], [-xl, yt],
+      [xl, 0], [0, 0], [-xl, 0],
+      [xl, -yt], [0, -yt], [-xl, -yt],
+  ]}
+  get dot_keys() {
+    return [
+      [], [5], [1, 9], [1, 5, 9], [1, 3, 7, 9], [1, 3, 7, 9, 5], [1, 4, 7, 3, 6, 9]
+    ]
+  }
+  override setCost(cost: string | number, rad?: number, cx?: number, cy?: number, args?: { color?: string; fontn?: string; r180?: boolean; oval?: number; }): NamedContainer {
+    const val = (typeof cost === 'string') ? Number.parseInt(cost) : cost;
+    const dots = new NamedContainer('Dots');
+    const edge = this.cm.edge, mar = this.cm.safe;
+    const size = this.dotSize = Math.ceil((this.cardw - 2 * edge - 4 * mar) / 6);
+    const dotLocs = this.dot_locs(size);
+    const dotKeys = this.dot_keys;
+    dotKeys[val].forEach(key => {
+      const dot = new CircleShape(C.BLACK, size, '');
+      const [x, y] = dotLocs[key];
+      dot.x = x; dot.y = y;
+      dots.addChild(dot);
+    })
+    return this.addChild(dots);
+  }
 }
-class CI_Dir extends CI {
 
-}
 class CI_Back extends CI {
   override setPriceBar(info: CardInfo2, color?: string): void {  }
   override setCost(cost: string | number): void {}
@@ -755,7 +790,6 @@ export class CardMaker {
     this.cardw = gridSpec.cardw - mBleed; // 800, includes bleed
     this.cardh = gridSpec.cardh - mBleed;
     this.radi = (gridSpec.radi ?? this.radi) + (this.withBleed ? gridSpec.bleed : 0);     // corner radius
-    this.safe = (gridSpec.safe ?? this.safe);     // text/image safe edge
   }
 
   nbsp = `${'\u00A0'}`;    // unicode NBSP
@@ -766,10 +800,12 @@ export class CardMaker {
   square_image_size = 115;
 
   readonly withBleed = false;
-  get bleed() { return this.withBleed ? this.gridSpec.bleed : 0; }
-  get edge() { return this.gridSpec.safe + this.bleed };
+  get safe() { return this.gridSpec.safe; }
+  get bleed() { return this.withBleed ? this.bleed : 0; }
+  get edge() { return this.safe + this.bleed };
   get topBand() { return 115 + this.bleed; }
   get bottomBand() { return 130 + this.bleed; }
+  radi = 37;   // (1/8 inch) this.gridspec.radi +? bleed
 
   sfFont = 'SF Compact Rounded';
   nunito = 'Nunito';                      // Nunito is variable weight, but less compact
@@ -794,8 +830,6 @@ export class CardMaker {
   // GridSpec.dpi can do card-scale...? just use: Container.scale for in-app sizing.
   cardw = 750; // 800 with bleed
   cardh = 525; // 575 with bleed
-  safe = 25;
-  radi = 37;   // (1/8 inch)
 
   fileDir = 'citymap';
   ci: CI;
@@ -827,14 +861,18 @@ export class CardMaker {
       case 'Policy':
         return new CI_Event(this, info); // landscape Event/Policy
 
-      case 'Road':
-        return new CI_Road(this, info);
-
       case 'House':  // card-type-home
         return new CI_Home(this, info);
 
       case 'Distance':
-        return new CI_Move(this, info);
+        return new CI_Dots(this, info);
+
+      case 'Alignment':
+      case 'Road':
+        return new CI_Road(this, info);
+
+      case 'Direction':
+        return new CI_Square(this, info);
 
       // Token-type
       case 'Debt':
@@ -843,8 +881,6 @@ export class CardMaker {
         return new CI_Token(this, info);
 
       case 'Blocked':
-      case 'Direction':
-      case 'Alignment':
       case 'Back':
         return new CI_Back(this, info);
       default:

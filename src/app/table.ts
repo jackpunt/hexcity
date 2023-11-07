@@ -1349,7 +1349,7 @@ export class Table extends EventDispatcher {
     let minX = pgb ? (cw + 4*ch + 5*m + pgb.width) : (2*cw + 3*ch + 5*m) // ~width of playerCont
     let minY = m
     let ptZ = { x: -minX, y: -minY }
-    let ptA = { x: 200-minX, y: -minY + (pg ? pg.y + 400 : 0) }
+    let ptA = { x: 400-minX, y: -minY + (pg ? pg.y + 800 : 0) }
 
     // setup Keybindings to reset Scale:
     const setScaleXY = (si: number = scaleC.initIndex, xy: XY = ptZ, sxy?: XY) => {
