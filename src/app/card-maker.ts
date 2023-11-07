@@ -350,6 +350,10 @@ export class CI extends Container {
     const fname = cText.font;            // shrink-resolved fontName
     const lineh = cText.lineHeight = nlh ?? (cText.lineHeight > 0 ? cText.lineHeight : cText.getMeasuredLineHeight());
     const liney = (lineno ?? 0) * lineh; // first
+    cText.textBaseline = (baseline ?? 'middle'); // 'top' | 'bottom'
+    cText.textAlign = (align ?? 'center');
+    cText.x += (dx ?? 0);
+    cText.y += ((dy ?? 0) + liney);
     const rText = cText.text;
     const tweak2 = {...tweaks, lineno: 0, baseline: (baseline ?? 'middle'), align: (align ?? 'center') }
     if (rText.includes('$')) {
@@ -358,12 +362,8 @@ export class CI extends Container {
         const dy2 = (dy ?? 0) + liney + lineinc * lineh;
         this.setTextWithCoins0(line, lineh, fname, lineinc, dy2, tweak2);
       })
-      return undefined;
+      return cText;
     }
-    cText.textBaseline = (baseline ?? 'middle'); // 'top' | 'bottom'
-    cText.textAlign = (align ?? 'center');
-    cText.x += (dx ?? 0);
-    cText.y += ((dy ?? 0) + liney);
     return this.addChild(cText);
   }
 
@@ -466,6 +466,8 @@ export class CI extends Container {
     })
   }
 
+  cText: Text;
+  cText_ymax: number
   /** set main Text on card, center each line; multiline & coin glyph. */
   setText(text: string | { key0?: string, size?: number }, y0?: number) {
     const tlines = ((typeof text === 'string') ? text : text?.key0) ?? undefined;
@@ -473,15 +475,59 @@ export class CI extends Container {
     const tsize = (typeof text !== 'string') ? (text?.size ?? this.cm.textSize) : this.cm.textSize;
     const tfont = this.cm.textFont;
     const dy = y0 ?? -this.cardh / 2 + this.cm.topBand + this.cm.priceBarSize + tsize;
-    this.setTextTweaks(tlines, tsize, tfont, { dy })
-    // const lines = tlines.split('\n'); // TODO: vertical centering
-    // lines.forEach((line: string, lineno: number) => {
-    //   if (!line.includes('$')) {
-    //     this.setTextTweaks(line, tsize, tfont, { lineno, dy });
-    //   } else {
-    //     this.setTextWithCoins(line, tsize, tfont, lineno, dy)
-    //   }
-    // })
+    const cText = this.cText = this.setTextTweaks(tlines, tsize, tfont, { dy });
+    const lineh = cText.lineHeight;
+    // this.setLine(this.cText.y - lineh / 2, 'YELLOW', undefined, 1);
+    this.cText_ymax = cText.y - lineh / 2 + cText.lineHeight * (tlines.split('\n').length);
+    return;
+  }
+
+  setXtraText(extext: XTEXT) {
+    if (!extext) return;
+    const [text, dx0, dy0, justify, size, fontname, color, rest] = extext;
+    const top = this.cm.topBand + this.cm.priceBarSize;
+    const dx1 = (dx0 === 'center') ? this.cardw / 2 : dx0 as number;
+    const dy1 = (dy0 === 'center') ? this.cardh / 2 : (dy0 === 'top') ? top : dy0 as number;
+    const dx = ((dx1 < 0) ? dx1 + this.cardw : dx1) - this.cardw / 2;
+    const dy = dy1 - this.cardh / 2;
+    const fname = (fontname === 'TEXTFONT') ? this.cm.textFont : fontname;
+    const align = (justify === 'LEFTJ') ? 'left' : (justify === 'RIGHTJ') ? 'right' : (justify === 'CENTER') ? 'center' : undefined;
+    const fsize = (size) ? size : this.cm.textSize;
+    this.setTextTweaks(text, fsize, fname, { color, dx, dy, align, ...rest });
+  }
+
+  textLow: Text;
+  setTextLow(textLow?: string | [text: string, ...tweaks: TWEAKS[]]) {
+    if (!textLow) return;
+    const xwide = this.cardw - (2 * this.cm.edge), thick = 5;
+    const [text, ...tweaks_ary] = (typeof textLow === 'string') ? [textLow] : textLow;
+    const tweaks = mergeObjectArray(tweaks_ary);
+    const size0 = tweaks.size ?? this.cm.textSize, font0 = this.cm.textFont, lead = size0 / 4;
+    const text0 = this.makeText(text, size0, font0, tweaks.color ?? C.BLACK, xwide);
+    const fontn = text0.font;
+    const lineh = text0.lineHeight = (tweaks.nlh ?? text0.getMeasuredLineHeight());
+    const height = text0.getMeasuredHeight(); // multi-line...
+    const liney = this.cardh / 2 - this.cm.bottomBand - height - lead - lead - thick / 2;
+    const texty = liney + thick / 2 + lead + lineh / 2;
+    this.setLine(liney, undefined, undefined, thick);
+    tweaks.dy = texty;
+    this.textLow = this.setTextTweaks(text0, undefined, fontn, tweaks);
+    this.textLow_min = this.textLow.y - lineh/2 - lead - thick;
+    // this.setLine(this.cText_ymax, 'RED', undefined, 1);
+    // this.setLine(this.textLow_min, 'RED', undefined, 1);
+    return;
+  }
+  textLow_min: number;
+
+  ovals = {Lake: 'rgb(58,111,235)', Plaza: 'yellow', Park: 'rgb(21,180,0)', Playground: 'rgb(185,83,0)'}
+  setOval(color: string, margin = 40) {
+    const y0 = this.cText_ymax, y1 = this.textLow_min ?? this.cardh / 2 - this.cm.bottomBand;
+    const rady = (y1 - y0 - this.cText.lineHeight) * .5;
+    const rx = this.cardw / 2 - margin;
+    const oval = new EllipseShape(color, rx, rady, '');
+    oval.y = (y0 + y1) / 2;
+    this.addChild(oval);
+    return;
   }
 
   setCost(cost: number | string) {
@@ -507,10 +553,10 @@ export class CI extends Container {
     }
   }
 
-  setLine(liney: number, color = C.BLACK, margin = 40, thick = 5) {
+  setLine(y: number, color = C.BLACK, margin = 40, thick = 5) {
     const line = new Shape();
-    line.name = `line(${liney})`;
-    const x0 = margin - this.cardw / 2, y = liney - this.cardh/2;
+    line.name = `line(${y})`;
+    const x0 = margin - this.cardw / 2;
     line.graphics.ss(thick, 'round').s(color).mt(x0, y).lt(-x0, y);//
     this.addChild(line);
   }
@@ -521,7 +567,7 @@ export class CI extends Container {
       const exline: XLINE = extra.line;
       if (exline) {
         const [liney, color, margin, thick ] = exline;
-        this.setLine(liney, color, margin, thick); // for Housing: complex 'textLow'
+        this.setLine(liney - this.cardh / 2, color, margin, thick); // for Housing: complex 'textLow'
       }
 
       const exvp = extra.vp; // XTEXT, string, number (ignore simple string/number; done setVP())
@@ -537,36 +583,10 @@ export class CI extends Container {
         this.setTextTweaks(text, size, font, { color, dx, dy, align, ...tweaks });
       }
 
-      const extext: XTEXT = extra.text;
-      if (extext) {
-        const [text, dx0, dy0, justify, size, fontname, color, rest] = extext;
-        const top = this.cm.topBand + this.cm.priceBarSize;
-        const dx1 = (dx0 === 'center') ? this.cardw / 2 : dx0 as number;
-        const dy1 = (dy0 === 'center') ? this.cardh / 2 : (dy0 === 'top') ? top : dy0 as number;
-        const dx = ((dx1 < 0) ? dx1 + this.cardw : dx1) - this.cardw / 2;
-        const dy = dy1 - this.cardh / 2;
-        const fname = (fontname === 'TEXTFONT') ? this.cm.textFont : fontname;
-        const align = (justify === 'LEFTJ') ? 'left' : (justify === 'RIGHTJ') ? 'right' : (justify=== 'CENTER') ? 'center' : undefined;
-        const fsize = (size) ? size : this.cm.textSize;
-        this.setTextTweaks(text, fsize, fname, { color, dx, dy, align, ...rest });
-      }
+      this.setXtraText(extra.text);
 
-      const textLow = extra.textLow;
-      if (textLow) {
-        const xwide = this.cardw - (2 * this.cm.edge), thick = 5;
-        const [text, ...tweaks_ary] = (typeof textLow === 'string') ? [textLow] : textLow;
-        const tweaks = mergeObjectArray(tweaks_ary);
-        const size0 = tweaks.size ?? this.cm.textSize, font0 = this.cm.textFont, lead = size0 / 4;
-        const text0 = this.makeText(text, size0, font0, tweaks.color ?? C.BLACK, xwide);
-        const fontn = text0.font;
-        const lineh = text0.lineHeight = (tweaks.nlh ?? text0.getMeasuredLineHeight());
-        const height = text0.getMeasuredHeight(); // multi-line...
-        const liney = this.cardh - this.cm.bottomBand - height - lead - lead - thick / 2;
-        const texty = liney + thick / 2 + lead  + lineh / 2 - this.cardh / 2;
-        this.setLine(liney, undefined, undefined, thick);
-        tweaks.dy = texty;
-        this.setTextTweaks(text0, undefined, fontn, tweaks);
-      }
+      this.setTextLow(extra.textLow);
+
       const coin = extra.coin;
       if (coin) {
         const gap = this.cardh * .013;
@@ -582,7 +602,12 @@ export class CI extends Container {
   }
 
   setImage(eximage: XIMAGE) {
+    // regular text AND extras.textLow have already be done.
     if ((eximage || eximage === null) && this.ximage) {
+
+      const ovalColor = this.ovals[this.name.split(':')[1]];
+      if (ovalColor) return this.setOval(ovalColor);
+
       const ximage = this.ximage;
       /** x-coord to center item of width between left & right */
       const center = (l: number, r: number, w: number) => l + (r - l - w) / 2;
@@ -599,10 +624,10 @@ export class CI extends Container {
       const bm = new Bitmap(ximage);
       // Analyse x, y, w, h to set bm.x, scaleX; bm.y, scaleY
       // Initialize as suitable for x, y === 'center' or x === 'card':
-      let bmx = (typeof x === 'number') ? x : center(cl, cr, iw);
-      let bmy = ((typeof y === 'number') ? y - ch/2 : center(ct, cb, ih));
       let scalex = (typeof w === 'number') ? w / iw : 1;
       let scaley = (typeof h === 'number') ? h / ih : 1;
+      let bmx = (typeof x === 'number') ? x : center(cl, cr, iw * scalex);
+      let bmy = ((typeof y === 'number') ? y - ch / 2 : center(ct, cb, ih * scaley));
 
       if (x === 'card') {
         bmx = - cw / 2;
