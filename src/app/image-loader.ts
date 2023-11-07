@@ -5,19 +5,31 @@ import { S, stime } from "@thegraid/common-lib";
  * see also: createjs.ImageLoader, which we don't use.
  */
 export class ImageLoader {
+  static ipser = 0; // debug
   /**
    * Promise to load url as HTMLImageElement
    */
-  loadImage(fname: string, ext = this.ext): Promise<HTMLImageElement> {
-    const { root } = this;
-    const url = `${root}${fname}.${ext}`;
+  loadImage(fname0: string, ext = this.ext): Promise<HTMLImageElement> {
+    const fname = fname0.split('.')[0];
+    const ip0  = this.ipmap.get(fname);
+    if (ip0) {
+      return ip0;
+    }
+    const url = `${this.root}${fname}.${ext}`;
     //console.log(stime(`image-loader: try loadImage`), url)
-    return new Promise<HTMLImageElement>((res, rej) => {
+    const ip = new Promise<HTMLImageElement>((res, rej) => {
       const img: HTMLImageElement = new Image();
-      img.onload = (evt => res(img));
+      img.onload = (evt => {
+        img[S.Aname] = fname;
+        this.imap.set(fname, img);  // record image as loaded!
+        res(img);
+      });
       img.onerror = ((err) => rej(`failed to load ${url} -> ${err}`));
       img.src = url; // start loading
     });
+    // ip['Aname'] = `${fname}-${++ImageLoader.ipser}`;
+    this.ipmap.set(fname, ip);
+    return ip;
   }
 
   /**
@@ -25,15 +37,9 @@ export class ImageLoader {
    * @param fnames
    */
   loadImages(fnames = this.fnames, ext = this.ext) {
-    let promises = fnames.map(fname => this.loadImage(fname, ext));
-    return Promise.all(promises).then(
-      (images: HTMLImageElement[]) => {
-        fnames.forEach((filename, n) => {
-          images[n][S.Aname] = filename;
-          this.imap.set(filename, images[n])
-        })
-        return this.imap;
-      }, (reason) => {
+    fnames.forEach(fname => this.ipmap.set(fname, this.loadImage(fname, ext)));
+    return this.imageMapPromise =  Promise.all(this.ipmap.values()).then(
+      (images) => this.imap, (reason) => {
         console.error(stime(this, `loadImages failed: ${reason}`));
         return this.imap;
       });
@@ -50,7 +56,6 @@ export class ImageLoader {
    * @param cb invoked with (imap)
    */
   constructor(args: { root: string, fnames: string[], ext: string },
-    public imap = new Map<string, HTMLImageElement>(),
     cb?: (imap: Map<string, HTMLImageElement>) => void)
   {
     this.root = args.root;
@@ -60,7 +65,11 @@ export class ImageLoader {
       this.loadImages().then(imap => cb(imap));
     }
   }
+  imap = new Map<string, HTMLImageElement>();
+  ipmap = new Map<string, Promise<HTMLImageElement>>();
   readonly root: string;
   readonly fnames: string[];
   readonly ext: string;
+  imagePromises: Promise<HTMLImageElement>[];
+  imageMapPromise: Promise<Map<string, HTMLImageElement>>
 }

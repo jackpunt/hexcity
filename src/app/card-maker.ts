@@ -1,8 +1,10 @@
-import { C, F } from "@thegraid/common-lib";
+import { C } from "@thegraid/common-lib";
 import { AlphaMaskFilter, Bitmap, Container, Shape, Text } from "@thegraid/easeljs-module";
-import { GridSpec, ImageGrid } from "./image-grid";
-import { CenterText, CircleShape, EllipseShape, PaintableShape, RectShape } from "./shapes";
+import { EzPromise } from "@thegraid/ezpromise";
 import { NamedObject } from "./game-play";
+import { GridSpec, ImageGrid } from "./image-grid";
+import { ImageLoader } from "./image-loader";
+import { CenterText, EllipseShape, PaintableShape, RectShape } from "./shapes";
 
 // (define BLACK  '(0    0   0))
 // (define GREY   '(128 128 128))
@@ -19,6 +21,13 @@ import { NamedObject } from "./game-play";
 // (define PURPLE '(232 115 255))
 // (define GREEN2 `(4 201 0))		; GREEN for HouseTokens
 
+// function moa(objs) {let rv={}; objs.forEach(obj => rv = {...rv, ...obj}); return rv;}
+function mergeObjectArray<T>(objs: T[]) {
+    let rv = {} as T;
+    objs.forEach(obj => rv = {...rv, ...obj})
+    return rv;
+  }
+
 type BASELINE = "top" | "hanging" | "middle" | "alphabetic" | "ideographic" | "bottom";
 type TWEAKS = {
   align?: 'left' | 'center' | 'right', size?: number,
@@ -29,6 +38,12 @@ type TWEAKS = {
 // type TWEAK = { [key in TWEAK_KEY]?: string | number };
 type XTEXT = [text: string, x?: number | 'center', y?: number | 'center' | 'top', justify?: 'LEFTJ' | 'CENTER' | 'RIGHTJ', size?: number, fontname?: string, color?: string, rest?: TWEAKS];
 type XLINE = [y: number, color?: string, margin?: number, thick?: number];
+type XIMAGE = [name: string | null,
+  x?: number | "center" | "fit" | "card",
+  y?: number | "center" | "fit" | "top",
+  w?: number,
+  h?: number | "xs" // match width (x-size)
+];   // for now, image: null OR image: [null, x, y, w, h]; never image: 'fname'
 type LVAL = string|number|any[];
 type EXTRAS = {
   text?: XTEXT,
@@ -36,13 +51,14 @@ type EXTRAS = {
   vp?: XTEXT | string | number,
   cardProps?: any,
   ext?: any,
-  image?: LVAL,
+  image?: XIMAGE,
   coin?: number,
   step?: LVAL,
   subtype?: LVAL,
   filen?: LVAL,
   xname?: LVAL,
-  textLow?: string | [text: string, ...tweaks: TWEAKS[]] };
+  textLow?: string | [text: string, ...tweaks: TWEAKS[]],
+};
 
 const TokenTypes = [
   'Debt',
@@ -136,6 +152,16 @@ export interface CardInfo extends CardInfo2 {
 
 /** CardImage (for a Card) based on CardInfo */
 export class CI extends Container {
+  static fnames = [
+    'Airport', 'Bar', 'Casino', 'Cineplex', 'Grocery', 'Lake', 'Mall',
+    'Park', 'Playground', 'Plaza', 'Restaurant', 'School', 'Stadium', 'Taxi',
+    'CitymapBackBleed', 'CitymapBackBleedL', 'BoomBackBleed', 'BoomBackBleedL',
+    'Home', 'ROT-L', 'ROT-R', 'THRU-S', 'TURN-L', 'TURN-R'
+  ];
+  static images = { root: '/assets/main/images/ximage/', fnames: CI.fnames, ext: 'png'};
+  static imageLoader = new ImageLoader(CI.images, undefined, ); // (imap) => { console.log(`CI.imageloader:`, imap)}
+  static ipser = 0;
+
   constructor(public cm: CardMaker, public cardInfo: CardInfo2, scale = cm.scale) {
     super();
     this.scaleX = this.scaleY = scale;
@@ -150,10 +176,49 @@ export class CI extends Container {
     this.setCost(cardInfo.cost);
     this.setVP(cardInfo.vp);
     this.setSubType(cardInfo.subtype, { lineno: 1 });
-    this.setPriceBar(cardInfo)
-    this.setText(cardInfo.text)
-    this.setExtras(cardInfo.extras)
+    this.setPriceBar(cardInfo);
+    this.setText(cardInfo.text);
+    this.updateCache();   // what we have so far...
+    this.ciPromise = new EzPromise<CI>();
+    const iname = this.iname;
+    const ximage = iname && CI.imageLoader.imap.get(iname);
+    if (iname && !ximage) {
+      this.loadImageSetExtras();
+      return;
+    }
+    this.finishWithXimage(ximage);
+  }
+  ciPromise: EzPromise<CI>;
+
+  get iname() {
+    const imageElt = this.cardInfo.extras?.find(elt => elt.image !== undefined);
+    const fname = imageElt && (imageElt.image?.[0] ?? this.cardInfo.path)?.split('.')[0];
+    return fname;
+  }
+
+  ximage: HTMLImageElement;
+  loadImageSetExtras() {
+    const imageElt = this.cardInfo.extras?.find(elt => elt.image !== undefined);
+    const fname = imageElt && (imageElt.image?.[0] ?? this.cardInfo.path); // null --> undefined --> path
+    const ip = fname && CI.imageLoader.loadImage(fname);
+    const ximage = CI.imageLoader.imap.get(fname);
+    if (!ximage) {
+      ip.then(
+        ximage => {
+          this.finishWithXimage(ximage);
+          this.stage?.update();
+        },
+        reason => (this.finishWithXimage(), undefined));
+    } else {
+      this.finishWithXimage(ximage);
+    }
+  }
+
+  finishWithXimage(ximage?: HTMLImageElement) {
+    this.ximage = ximage;
+    this.setExtras(this.cardInfo.extras)
     this.updateCache();
+    this.ciPromise.fulfill(this);
   }
 
   cardw: number;
@@ -200,8 +265,19 @@ export class CI extends Container {
     this.cache(x, y, w, h);
   }
 
+  /** replace weight */
+  family_wght(fam_wght: string, wght?: string | number) {
+    // extract weight info, compose: ${style} ${weight} ${family}
+    const regex = / (\d+|thin|light|regular|normal|bold|semibold|heavy)$/i;
+    const match = fam_wght.match(regex);
+    const weight = wght ?? match?.[1];
+    const family = weight ? fam_wght.slice(0, match.index) : fam_wght;
+    const fontstr = `${family} ${weight ?? 410}`;
+    return fontstr;
+  }
+
   // https://stackoverflow.com/questions/64583689/setting-font-weight-on-canvas-text
-  composeFontName(size: number, fam_wght: string, ) {
+  composeFontName(size: number, fam_wght: string, wght?: string | number) {
     // extract weight info, compose: ${style} ${weight} ${family}
     const style = 'normal'; // assert: style is not included in original fontstr: 'nnpx family weight'
     const regex = / (\d+|thin|light|regular|normal|bold|semibold|heavy)$/i;
@@ -268,7 +344,8 @@ export class CI extends Container {
    * @param tweaks: dy: initial y-coord, lineno: advances by lineh;
    */
   setTextTweaks(text: string | Text, fontsize: number, fontname: string, tweaks?: TWEAKS) {
-    const { color, dx, dy, lineno, baseline, align, nlh } = tweaks ?? {};
+    const { color, dx, dy, lineno, baseline, align, nlh, wght } = tweaks ?? {};
+    if (wght) fontname = this.family_wght(fontname, wght);
     const cText = (text instanceof Text) ? text : this.makeText(text, fontsize, fontname, color ?? C.BLACK);
     const fname = cText.font;            // shrink-resolved fontName
     const lineh = cText.lineHeight = nlh ?? (cText.lineHeight > 0 ? cText.lineHeight : cText.getMeasuredLineHeight());
@@ -432,18 +509,34 @@ export class CI extends Container {
 
   setLine(liney: number, color = C.BLACK, margin = 40, thick = 5) {
     const line = new Shape();
+    line.name = `line(${liney})`;
     const x0 = margin - this.cardw / 2, y = liney - this.cardh/2;
     line.graphics.ss(thick, 'round').s(color).mt(x0, y).lt(-x0, y);//
     this.addChild(line);
   }
 
   setExtras(extras: EXTRAS[]) {
-    extras?.forEach((extra: EXTRAS) =>{
+    extras?.forEach((extra: EXTRAS) => {
+
       const exline: XLINE = extra.line;
       if (exline) {
         const [liney, color, margin, thick ] = exline;
-        this.setLine(liney, color, margin, thick);
+        this.setLine(liney, color, margin, thick); // for Housing: complex 'textLow'
       }
+
+      const exvp = extra.vp; // XTEXT, string, number (ignore simple string/number; done setVP())
+      if (typeof exvp === 'object') {
+        const [text, dx0, dy0, justify, size, fontname, color, tweaks] = exvp;
+        const dx1 = (dx0 === 'center') ? this.cardw / 2 : dx0 as number;
+        const dy1 = (dy0 === 'center') ? this.cardw / 2 : dx0 as number;
+        const x0 = this.cardw / 2 - this.cm.vpSize, y0 = this.cardh / 2 - this.cm.vpSize;
+        const dx = x0 + dx1;
+        const dy = y0 + dy1;
+        const font = (fontname === 'TEXTFONT') ? this.cm.vpFont : fontname;
+        const align = (justify === 'LEFTJ') ? 'left' : (justify === 'RIGHTJ') ? 'right' : (justify=== 'CENTER') ? 'center' : undefined;
+        this.setTextTweaks(text, size, font, { color, dx, dy, align, ...tweaks });
+      }
+
       const extext: XTEXT = extra.text;
       if (extext) {
         const [text, dx0, dy0, justify, size, fontname, color, rest] = extext;
@@ -457,24 +550,12 @@ export class CI extends Container {
         const fsize = (size) ? size : this.cm.textSize;
         this.setTextTweaks(text, fsize, fname, { color, dx, dy, align, ...rest });
       }
-      const exvp = extra.vp; // XTEXT, string, number (ignore simple string/number; done setVP())
-      if (typeof exvp === 'object') {
-        const [text, dx0, dy0, justify, size, fontname, color, tweaks] = exvp;
-        const dx1 = (dx0 === 'center') ? this.cardw / 2 : dx0 as number;
-        const dy1 = (dy0 === 'center') ? this.cardw / 2 : dx0 as number;
-        const x0 = this.cardw / 2 - this.cm.vpSize, y0 = this.cardh / 2 - this.cm.vpSize;
-        const dx = x0 + dx1;
-        const dy = y0 + dy1;
-        const font = (fontname === 'TEXTFONT') ? this.cm.vpFont : fontname;
-        const align = (justify === 'LEFTJ') ? 'left' : (justify === 'RIGHTJ') ? 'right' : (justify=== 'CENTER') ? 'center' : undefined;
-        this.setTextTweaks(text, size, font, { color, dx, dy, align, ...tweaks });
-      }
+
       const textLow = extra.textLow;
       if (textLow) {
         const xwide = this.cardw - (2 * this.cm.edge), thick = 5;
         const [text, ...tweaks_ary] = (typeof textLow === 'string') ? [textLow] : textLow;
-        let tweaks = {} as TWEAKS;
-        tweaks_ary.forEach(elt => tweaks = { ...elt, ...tweaks });
+        const tweaks = mergeObjectArray(tweaks_ary);
         const size0 = tweaks.size ?? this.cm.textSize, font0 = this.cm.textFont, lead = size0 / 4;
         const text0 = this.makeText(text, size0, font0, tweaks.color ?? C.BLACK, xwide);
         const fontn = text0.font;
@@ -495,8 +576,64 @@ export class CI extends Container {
         const oval = .8;
         this.setCoin(coin, rady, cx, cy, { oval });
       }
+
+      this.setImage(extra.image);
     })
   }
+
+  setImage(eximage: XIMAGE) {
+    if ((eximage || eximage === null) && this.ximage) {
+      const ximage = this.ximage;
+      /** x-coord to center item of width between left & right */
+      const center = (l: number, r: number, w: number) => l + (r - l - w) / 2;
+      // const { x: rx, y: ry, width: rw, height: rh } = this.getBounds();
+      const [name, x, y, w, h] = eximage ?? [];
+      const cw = this.cardw, iw = ximage.width, mar = this.cm.edge;
+      const ch = this.cardh, ih = ximage.height;
+      const cl = mar - cw / 2, cr = cw / 2 - mar;
+      const ct = (this.cm.topBand + this.cm.priceBarSize - ch / 2);
+      const cb = ch / 2 - this.cm.bottomBand
+      const normalx = (x) => x === 'left' ? cl : x === 'right' ? cr : x === 'center' ? 0 : x;
+      const normaly = (y) => y === 'top' ? ct : y === 'bot' ? cb : y === 'center' ? 0 : y;
+      // Assert: this.ximage is loaded.
+      const bm = new Bitmap(ximage);
+      // Analyse x, y, w, h to set bm.x, scaleX; bm.y, scaleY
+      // Initialize as suitable for x, y === 'center' or x === 'card':
+      let bmx = (typeof x === 'number') ? x : center(cl, cr, iw);
+      let bmy = ((typeof y === 'number') ? y - ch/2 : center(ct, cb, ih));
+      let scalex = (typeof w === 'number') ? w / iw : 1;
+      let scaley = (typeof h === 'number') ? h / ih : 1;
+
+      if (x === 'card') {
+        bmx = - cw / 2;
+        bmy = - ch / 2;
+      }
+      // 'fit' to white region: x-margin, y-top/bottom
+      if (x === 'fit') {
+        bmx = cl;
+        scalex = (cr - cl) / iw;
+      }
+      if (y === 'fit') {
+        bmy = ct;    // TODO: shrink to fit with text & textLow
+        scaley = (cb - ct) / ih;
+      } else if (y === 'top') {
+        bmy = ct;
+      }
+      if (h === 'xs') {
+        scaley = scalex;
+      }
+      bm.x = bmx;
+      bm.y = bmy;
+      bm.scaleX = scalex;
+      bm.scaleY = scaley;
+      this.addChild(bm);
+      // const spot = new CircleShape(C.BLUE, 30);
+      // spot.paint();
+      // this.addChild(spot);
+      return;
+    }
+  }
+
 }
 class CI_Tile extends CI {
 
@@ -554,6 +691,14 @@ class CI_Token extends CI {
 
 /** holds all the context; use a factory to make a Card (or CardImage?) based on supplied CardInfo */
 export class CardMaker {
+  constructor(public gridSpec: GridSpec = ImageGrid.cardSingle_1_75, public scale = 1) {
+    const mBleed = 2 * (this.withBleed ? 0 : gridSpec.bleed);
+    this.cardw = gridSpec.cardw - mBleed; // 800, includes bleed
+    this.cardh = gridSpec.cardh - mBleed;
+    this.radi = (gridSpec.radi ?? this.radi) + (this.withBleed ? gridSpec.bleed : 0);     // corner radius
+    this.safe = (gridSpec.safe ?? this.safe);     // text/image safe edge
+  }
+
   nbsp = `${'\u00A0'}`;    // unicode NBSP
   transitColor = 'rgb(180,180,180)';    // very light grey
   comTransitColor = 'rgb(180,120,80)';  // Brown/Grey
@@ -596,13 +741,6 @@ export class CardMaker {
   fileDir = 'citymap';
   ci: CI;
 
-  constructor(public gridSpec: GridSpec = ImageGrid.cardSingle_1_75, public scale = 1) {
-    const mBleed = 2 * (this.withBleed ? 0 : gridSpec.bleed);
-    this.cardw = gridSpec.cardw - mBleed; // 800, includes bleed
-    this.cardh = gridSpec.cardh - mBleed;
-    this.radi = (gridSpec.radi ?? this.radi) + (this.withBleed ? gridSpec.bleed : 0);     // corner radius
-    this.safe = (gridSpec.safe ?? this.safe);     // text/image safe edge
-  }
   makeCard(info: CardInfo) {
     const type: CardType = info.type;
     switch (info.type) {

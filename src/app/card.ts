@@ -4,7 +4,6 @@ import type { DebtContainer } from './Debt';
 import { C, F, S, WH } from './basic-intfs';
 import { CardContainer } from './card-container';
 import { CI, CardInfo, CardInfo2, CardMaker, CardType, SubType } from "./card-maker";
-import { loadImage } from './image-loader';
 import { Player } from './player';
 import { Table } from './table';
 import { TP } from './table-params';
@@ -41,7 +40,7 @@ export class Stack extends Array<Card> {
   // but we just ended up fudging card.width/height with defSlotSize
   // Still: this field now distinguishes Stack from Array<CardInfo>
   // (versus using stack[0].imagePromise !== undefined)
-  imagePromises: Array<Promise<HTMLImageElement>>
+  imagePromises: Promise<HTMLImageElement>[];
 
   constructor(cards?: Card[]) {
     if (typeof(cards) == 'number') {
@@ -198,7 +197,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
       this.bitmap.y -= this.height / 2;
     } else {
       this.bitmap = ci;  // CI is already centered around (0, 0)! so drag will not be offset!
-      const prom = new Promise<HTMLImageElement>((res) => { res(image) })
+      const prom = new Promise<HTMLImageElement>((res, rej) => { res(image) }); // RESOLVED!
       this.imagePromise = info.imagePromise = prom;
       this.addChild(this.bitmap);
       // this.cache(x * scale, y * scale, width * scale, height * scale);
@@ -457,8 +456,8 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
    * @return a Stack of the Cards; stack.imagePromises: Array\<Promise\<HTMLImageElement>>
    */
   static loadCards(info: CardInfo2[], table?: Table, donefunc?:((stack:Stack) => void), thisArg?: any): Stack {
-    let stack: Stack = new Stack()
-    let promises: Array<Promise<HTMLImageElement>> = [];
+    const stack: Stack = new Stack()
+    const promises: Promise<HTMLImageElement>[] = [];
     //console.log(stime(this, ".loadCards1: stack="), stack, promises)
     stack.imagePromises = promises;
 
@@ -467,7 +466,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
       const nreps = acard.nreps;
       // likely has .imagePromise
       //console.log(stime(this, ".loadCards2"), acard.nreps, acard.name, acard)
-      promises.push(acard.getImagePromise());
+      promises.push(acard.imagePromise);
       for (let i: number = 0; i < nreps; i++) {
         stack.push(new Card(acard, 1, table)); // copy card, share image, imagePromise
       }
@@ -477,7 +476,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     //console.log(stime(this, ".loadCards4: promises="), promises)
     if (donefunc)
       Promise.all(promises).then(
-        (images: Array<HTMLImageElement>) => donefunc.call(thisArg, stack));
+        (images: HTMLImageElement[]) => donefunc.call(thisArg, stack));
     return stack;
   }
   /** @return a string with type identifiers, suitable for RegExp matching. */

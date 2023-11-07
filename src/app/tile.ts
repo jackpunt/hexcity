@@ -1,7 +1,8 @@
-import { C, Constructor, ImageLoader, S, className, stime } from "@thegraid/common-lib";
+import { C, Constructor, S, className, stime } from "@thegraid/common-lib";
 import { Bitmap, Container, MouseEvent, Text } from "@thegraid/easeljs-module";
 import type { GamePlay } from "./game-play";
 import { Hex1, Hex2 } from "./hex";
+import { ImageLoader } from "./image-loader";
 import type { Player } from "./player";
 import { C1, CenterText, HexShape, PaintableShape, TileShape } from "./shapes";
 import type { DragContext, Dragable, Table } from "./table";
@@ -11,7 +12,6 @@ import { TileSource } from "./tile-source";
 
 class TileLoader {
   Uname = ['Univ0', 'Univ1'];
-  imageMap = new Map<string, HTMLImageElement>();
   aliases = { Monument1: 'arc_de_triomphe3', Monument2: 'Statue-of-liberty' };
   fromAlias(names: string[]) {
     return names.map(name => this.aliases[name] ?? name);
@@ -22,12 +22,13 @@ class TileLoader {
     ext: 'png',
   };
 
+  imageLoader: ImageLoader;
   /** use ImageLoader to load images, THEN invoke callback. */
-  loadImages(cb: () => void) {
-    new ImageLoader(this.imageArgs, this.imageMap, (imap) => cb())
+  loadImages(cb?: () => void) {
+    this.imageLoader = new ImageLoader(this.imageArgs, (imap) => cb());
   }
   getImage(name: string) {
-    return this.imageMap.get(this.aliases[name] ?? name);
+    return this.imageLoader.imap.get(this.aliases[name] ?? name);
   }
 }
 

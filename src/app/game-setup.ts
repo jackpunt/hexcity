@@ -4,10 +4,10 @@ import { Container, Stage } from '@thegraid/easeljs-module';
 import { CgMessage, CLOSE_CODE } from '@thegraid/wspbclient';
 import { CmType } from '../proto/CmProto';
 import { S } from './basic-intfs';
-import { CardInfo, CardInfo2 } from './card-maker';
 import { Card, Deck, Stack } from './card';
 import { CardContainer } from './card-container';
 import { CardEvent, ValueEvent } from "./card-event";
+import { CardInfo, CardInfo2, CI } from './card-maker';
 import { AlignDeck } from './cardinfo/align-deck';
 import { BackDeck } from './cardinfo/back-deck';
 import { DirDeck } from './cardinfo/dir-deck';
@@ -78,6 +78,12 @@ export class GameSetup {
     this.gamePlay = new GamePlay(this.table, this);
     this.table.gamePlay = this.gamePlay
     this.table.cmClient = new CmClient()    // pro-forma, temporary, disconnected CmClient
+    // TODO: restart CI.imageLoader.loadImages() with ()=>{}
+    CI.imageLoader.imageMapPromise?.then((imap) => {
+      console.log(stime(this, `.constructor: images loaded`), imap.size);
+    }, (imap) => {
+      console.log(stime(this, `.constructor: images FAILED`), imap);
+    })
   }
   /** de-construct all the CardContainers & EventListeners & Card.slotInfo & parent */
   restart() {
@@ -121,10 +127,10 @@ export class GameSetup {
   loadCardsOfDeck(decks: Deck[], deckName: string, promiseArrays: Promise<HTMLImageElement>[][]): Stack {
     let stack: Stack = new Stack();
 
-    let pushDeckToStack = (deck: Deck) => {
-      let fieldName = this.fieldNameForDeck[deckName || deck.name]
+    const pushDeckToStack = (deck: Deck) => {
+      const fieldName = this.fieldNameForDeck[deckName ?? deck.name];
       if (!!fieldName) {
-        stack = this.table[fieldName] || (this.table[fieldName] = new Stack())
+        stack = this.table[fieldName] ?? (this.table[fieldName] = new Stack())
       }
       stack.push(...deck.stack) // stack = stack.shuffle(deck.stack)
     }
@@ -133,14 +139,14 @@ export class GameSetup {
     }
 
     decks.forEach(deck => {
-      deck.cards.forEach(c => this.extNames.add(c.ext))
-      let cards0 = deck.cards.filter(c => !this.excludeExt.includes(c.ext))
-      let cards = cards0.filter(c => !isLike(c, TP.removeCards) || isLike(c, TP.includeCards))
-      deck.stack = Card.loadCards(cards, this.table)
+      deck.cards.forEach(card => this.extNames.add(card.ext))
+      const cards0 = deck.cards.filter(card => !this.excludeExt.includes(card.ext))
+      const cards = cards0.filter(card => !isLike(card, TP.removeCards) || isLike(card, TP.includeCards))
+      deck.stack = Card.loadCards(cards, this.table);
       promiseArrays.push(deck.stack.imagePromises);
       pushDeckToStack(deck);
     }, this)
-    return stack
+    return stack; // return value only interesting/useful when deckName = 'other'
   }
   allOtherCards: Stack;
   /**
@@ -162,13 +168,13 @@ export class GameSetup {
     let noExt = this.excludeExt.filter(name => !this.extNames.has(name))
     if (noExt.length > 0 && loadCards) alert(`no such extensions ${noExt}`)
     if (this != gs) {
-      // copy cards & stacks from gs.table to this.table:
+      // copy [new instanceof each] cards & stacks from gs.table to this.table:
       this.tokenDecks.forEach(deck => {
-        let fieldName = this.fieldNameForDeck[deck.name]
-        let tokenCards = gs.table[fieldName] as Stack
-        this.table[fieldName] = new Stack(tokenCards.map(c => new Card(c, 1, this.table)))
+        const fieldName = this.fieldNameForDeck[deck.name]
+        const tokenCards = gs.table[fieldName] as Stack
+        this.table[fieldName] = new Stack(tokenCards.map(card => new Card(card, 1, this.table)))
       })
-      this.allOtherCards = new Stack(gs.allOtherCards.map(c => new Card(c, 1, this.table))) // copy with null slotInfo
+      this.allOtherCards = new Stack(gs.allOtherCards.map(card => new Card(card, 1, this.table))) // copy with null slotInfo
     }
     let otherCards = new Stack(Array.from(this.allOtherCards)) // trust that slotInfo is nullified
     let tileCards = otherCards.findCards(card => card.isTileStack(), true)
@@ -204,7 +210,7 @@ export class GameSetup {
 
     if (loadCards) { // was hacked back @ "new stime (in CC)"
       // flatten promiseArrays:
-      let allImages: Array<Promise<HTMLImageElement>> = [].concat(...this.promiseArrays);
+      let allImages: Promise<HTMLImageElement>[] = [].concat(...this.promiseArrays);
       Promise.all<HTMLImageElement>(allImages).then((images) => this.imagesLoaded(images));
     }
     if (!!this.paramGUI) this.paramGUI.selectValue("Start", " ")
