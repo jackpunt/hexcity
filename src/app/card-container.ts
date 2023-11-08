@@ -1,12 +1,12 @@
-import { DragInfo, Dragole, Dragger, stime } from '@thegraid/easeljs-lib'
-import { Card, Stack, SlotInfo, HasSlotInfo } from './card';
-import { Container, DisplayObject, Shape, MouseEvent, Bitmap } from '@thegraid/easeljs-module';
-import { TP } from './table-params';
-import { WH, XY, S, Obj, C } from './basic-intfs';
+import { DragInfo, Dragger, Dragole, stime } from '@thegraid/easeljs-lib';
+import { Container, DisplayObject, MouseEvent, Shape } from '@thegraid/easeljs-module';
+import { C, Obj, S, WH, XY } from './basic-intfs';
+import { Card, HasSlotInfo, SlotInfo, Stack } from './card';
+import { CardEvent } from './card-event';
+import { CI } from './card-maker';
 import { CmClient } from './cm-client';
 import { Table } from './table';
-import { ValueCounter } from './value-counter';
-import { CardEvent } from './card-event';
+import { TP } from './table-params';
 
 /** CardContainer(s) are generally grouped functionally in a ContainerAt.
  * The overCont is where we put Counters and Markers.
@@ -271,7 +271,7 @@ export class CardContainer extends Container {
     let col = this.cardSlotCol(pxy.x)
     let obj = (e.target as DisplayObject)    // click on bitmap(Card), or shape(bg), or shape(ValueCounter)
     // ASSERT: the only Bitmap above a CardContainer is on a Card
-    let card: Card = (obj instanceof Bitmap) ? obj.parent as Card : undefined
+    let card: Card = (obj instanceof CI) ? obj.parent as Card : undefined;
     return new CardEvent(S.click, card, row, col, this)
   }
   // CC.on(S.click, mouseClickOnCC, this)

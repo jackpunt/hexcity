@@ -1,21 +1,21 @@
 import { Constructor, stime } from '@thegraid/common-lib';
 import { Container, EventDispatcher, MouseEvent, Shape, Stage, Text } from '@thegraid/easeljs-module';
 import { EzPromise } from '@thegraid/ezpromise';
+import type { DebtContainer } from './Debt';
 import { C, F, Obj, S, WH, XY } from './basic-intfs';
 import { Card, Flag, HasSlotInfo, SlotInfo, Stack } from './card';
-import { CardContainer, CCopts, ContainerAt } from './card-container';
+import { CCopts, CardContainer, ContainerAt } from './card-container';
 import { CardEvent, ValueEvent } from "./card-event";
 import { ChooseDir, DirSpec } from './choose-dir';
 import { CmClient } from './cm-client';
-import type { DebtContainer } from './Debt';
 import type { GamePlay } from './game-play';
 import { MainMap, MoveRec } from './main-map';
 import { PlayerStats } from './player-stats';
 import type { Table } from "./table";
 import { TP } from './table-params';
+import { Tile } from './tile';
 import { Notifyable } from './types';
 import { ValueCounter } from "./value-counter";
-import { Tile } from './tile';
 
 /** all the vitals to reset Player to pre-move status (CardRec + resource slots) */
 export type PlayerState = {
@@ -158,7 +158,7 @@ export class Player extends EventDispatcher {
     this.table = table;
     this.color = color;
     let ndx = table.allPlayers.length;  // ndx used here only for Player's name:
-    this.name = "player"+ndx+"-"+this.color;
+    this.name = this.Aname = "player"+ndx+"-"+this.color;
     this.rgbColor = color;              // until homeCards is loaded with real rgbColor
     this.mainMap = table.mainMap
     this.ownerCard = this.ownerCard || table.homeCards.findCard("Owner-"+color+"-0", true)

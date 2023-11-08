@@ -1,23 +1,24 @@
 import { Constructor, whileP } from '@thegraid/common-lib';
-import { Dragger, findFieldValue, KeyBinder, ParamGUI, ScaleableContainer, ScaleEvent, stime, Undo } from '@thegraid/easeljs-lib';
-import { Container, DisplayObject, EventDispatcher, MouseEvent, Point, Shape, Stage, Text } from '@thegraid/easeljs-module';
+import { Dragger, KeyBinder, ParamGUI, ScaleEvent, ScaleableContainer, Undo, findFieldValue, stime } from '@thegraid/easeljs-lib';
+import { Container, DisplayObject, EventDispatcher, MouseEvent, Point, Shape, Stage } from '@thegraid/easeljs-module';
 import { EzPromise } from '@thegraid/ezpromise';
 import { KVpair } from '../proto/CmProto';
+import type { DebtForTable } from './Debt';
 import { C, F, M, S, WH, XY } from './basic-intfs';
 import { Card, HouseToken, SlotInfo, Stack } from './card';
-import { CardContainer, CC, CCopts, ContainerAt } from './card-container';
+import { CC, CCopts, CardContainer, ContainerAt } from './card-container';
 import { CardEvent, ValueEvent } from "./card-event";
 import { ChooseDir } from './choose-dir';
 import { CmClient } from './cm-client';
-import type { DebtForTable } from './Debt';
 import { Effects } from './effects';
 import type { GamePlay } from './game-play';
+import { Hex2, HexMap } from './hex';
 import { MainMap } from './main-map';
 import { Player } from './player';
 import { TP } from './table-params';
-import { ValueCounter } from "./value-counter";
-import { Hex, Hex2, HexMap } from './hex';
+import { TextLog } from './text-log';
 import { Tile } from './tile';
+import { ValueCounter } from "./value-counter";
 
 /** MakeCardContainer Options */
 export type MCCOpts = {
@@ -30,55 +31,6 @@ export type MCCOpts = {
   markColor?: string, backCard?: boolean, backClick?: boolean, bg?: boolean, bgclick?: ((e:MouseEvent) => void),
 
   stackRow?: number, stackCol?: number, shuffle?:boolean, // shuffle stack onto [stackRow][stackCol]
-}
-
-class TextLog extends Container {
-  constructor(public Aname: string, nlines = 6, public size: number = 30, public lead = 3) {
-    super()
-    this.lines = new Array<Text>(nlines);
-    for (let ndx = 0; ndx < nlines; ndx++) this.lines[ndx] = this.newText(`//0:`)
-    this.addChild(...this.lines);
-  }
-
-  lines: Text[];
-  lastLine = '';
-  nReps = 0;
-
-  height(n = this.lines.length) {
-    return (this.size + this.lead) * n;
-  }
-
-  clear() {
-    this.lines.forEach(tline => tline.text = '');
-    this.stage?.update();
-  }
-
-  private newText(line = '') {
-    const text = new Text(line, F.fontSpec(this.size));
-    text.textAlign = 'left';
-    text.mouseEnabled = false;
-    return text;
-  }
-
-  private spaceLines(cy = 0, lead = this.lead) {
-    this.lines.forEach(tline => (tline.y = cy, cy += tline.getMeasuredLineHeight() + lead))
-  }
-
-  log(line: string, from = '', toConsole = true) {
-    line = line.replace('/\n/g', '-');
-    toConsole && console.log(stime(`${from}:`), line);
-    if (line === this.lastLine) {
-      this.lines[this.lines.length - 1].text = `[${++this.nReps}] ${line}`;
-    } else {
-      this.removeChild(this.lines.shift());
-      this.lines.push(this.addChild(this.newText(line)));
-      this.spaceLines();
-      this.lastLine = line;
-      this.nReps = 0;
-    }
-    this.stage?.update();
-    return line;
-  }
 }
 
 class TurnButton extends Shape {
