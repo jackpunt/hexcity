@@ -1,5 +1,5 @@
 import { C } from "@thegraid/common-lib";
-import { AlphaMaskFilter, Bitmap, Container, DisplayObject, Shape, Text } from "@thegraid/easeljs-module";
+import { AlphaMaskFilter, Bitmap, Container, DisplayObject, Graphics, Shape, Text } from "@thegraid/easeljs-module";
 import { EzPromise } from "@thegraid/ezpromise";
 import { NamedObject } from "./game-play";
 import { GridSpec, ImageGrid } from "./image-grid";
@@ -130,7 +130,20 @@ export interface CardInfo2 {
   text?: string | null | object;
   textLow?: string | null | object;
   ispec?: [name?: string, x?: xiarg, y?: yiarg, w?: number, h?: number | 'xs']; // ~/Google Drive/jpeckj/Estates/images/...
-  props?: object;     // cardProps: event/policy/tile script
+  props?: {                 // cardProps: event/policy/tile script
+    align?: ('RR' | 'RL')[],
+    rgbColor?: string, vp?,
+    futureEvent?: object, event?: object,
+    moves?, buys?, build?, builds?, untilBuilds?, untilBuys?, untilTurnEnd?,
+    onBuild?, onBuy?, onMove?, onTurnStart?, onStop?, onStep?, onGetDist?: object,
+    special?, step?, stop?, rent?, cost?, dist?, noStop?: boolean,
+
+    cardFields?: string | string[],
+    nthAirportVP?,
+    roadSpec?: { set: ('S' | 'R' | 'L')[] },
+    turnToken?, turnTokenCounter?,
+    valueToken?, valueTokenCounter?, stopCounter?,
+  };
   // BACK-DECK
   bgcolor?: string;
   portrait?: boolean; // rotate before exporting
@@ -677,8 +690,89 @@ class CI_Road extends CI_Square {
     if (coin) coin.y += 5;
     return coin;
   }
+  override setPriceBar(cardInfo: CardInfo2): void {
+    const mar = 50, r = (this.cardh - this.by - this.ty) / 2  - mar;
+    const props = cardInfo.props;
+    if (props.align) {
+      const spec = props.align as ('S' | 'R' | 'L' | 'RL' | 'RR')[];
+      this.doRoutes(spec, r);
+      return;
+    }
+    const fieldName = props.cardFields as string;
+    const spec = props[fieldName].set
+    this.doRoutes(spec, r);
+  }
 
+  doRoutes(spec: ('S' | 'R' | 'L' | 'RL' | 'RR')[], r = 100) {
+    const specn = spec.join('-');
+    const base = new NamedContainer(`Road-${specn}`, 0 , 0)
+    spec.slice(0,4).forEach((element, n) => {
+      const route = this.route(element, r);
+      route.rotation = n * 90;
+      base.addChild(route);
+    });
+    this.addChild(base);
+  }
+
+  route(dir: 'S' | 'R' | 'L' | 'RL' | 'RR', r = 213.5) {
+    const ang = 65, k = -.2, ss = 9; // 50->.4, 55->.2, 65->-.2
+    const x = r * (1 - Math.cos(ang * Math.PI / 180)); // 0 --> r
+    const y = r * (1 - Math.sin(ang * Math.PI / 180)); // r --> 0
+    const g = new Graphics().ss(ss).s(C.BLACK), rad = r * .08;
+
+    const arc = (left: boolean, sc = 1) => {
+      const x0 = (left ? x : -x) * sc, x2 = (left ? y : -y) * sc, y2 = 0, kk = left ? k : 0;
+      const py = -y * sc, pa = 90 + ang * (1 + kk);
+      g.f(C.BLACK).dc(0, -r * sc, rad).ef()
+      g.mt(0, -r * sc ).arcTo(0, 0, x2, y2, r * sc);
+      g.f(C.BLACK).dp(x0, py, rad, 3, 0, pa).ef()
+      return g;
+    }
+
+    switch (dir) {
+      case 'S': { // THRU-S
+        const x0 = 0, x2 = 0, y2 = r, py = r * .4, pa = 90;
+        g.f(C.BLACK).dc(0, -r, rad).ef()
+        g.mt(0, -r).lt(x2, y2)
+        g.f(C.BLACK).dp(x0, py, rad, 3, 0, pa).ef()
+        return new Shape(g);
+      }
+      case 'R': { // TURN-R
+        return new Shape(arc(false));
+      }
+      case 'L': { // TURN-L
+        return new Shape(arc(true));
+      }
+      case 'RR': {
+        const y = r / 2;
+        const rv = new NamedContainer(`RL`, 0, 0);
+        g.ss(4)
+        const g0 = g.clone();
+        const k1 = new Shape(arc(true, .5));
+        k1.rotation = -90;
+        k1.x += r / 2;
+        k1.y -= y;
+        const k2 = new Shape(g0.mt(0, 0).lt(0, -y));
+        rv.addChild(k1, k2)
+        return rv;
+      }
+      case 'RL': {
+        const y = r / 2;
+        const rv = new NamedContainer(`RL`, 0, 0);
+        g.ss(4)
+        const g0 = g.clone();
+        const k1 = new Shape(arc(false, .5));
+        k1.rotation = 90;
+        k1.x -= r / 2;
+        k1.y -= y;
+        const k2 = new Shape(g0.mt(0, 0).lt(0, -y));
+        rv.addChild(k1, k2)
+        return rv;
+      }
+    }
+  }
 }
+
 class CI_Home extends CI {
   override makeBase(): void {
     super.makeBase();
@@ -695,6 +789,7 @@ class CI_Home extends CI {
     return;
   }
 }
+
 class CI_Owner extends CI {
 
   override makeBase(color = this.cardInfo.color ?? 'pink') {
