@@ -711,6 +711,7 @@ class CI_Road extends CI_Square {
       route.rotation = n * 90;
       base.addChild(route);
     });
+    base.cache(-this.cardw/2, -this.cardw/2, this.cardw, this.cardw);
     this.addChild(base);
   }
 
@@ -746,7 +747,7 @@ class CI_Road extends CI_Square {
       case 'RR': {
         const y = r / 2;
         const rv = new NamedContainer(`RL`, 0, 0);
-        g.ss(4)
+        g.ss(5)
         const g0 = g.clone();
         const k1 = new Shape(arc(true, .5));
         k1.rotation = -90;
