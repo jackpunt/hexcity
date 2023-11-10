@@ -322,7 +322,7 @@ export class FieldClause extends ResponseClause {
     if ((typeof val) === "object") {
       // parseActionClauses & FilterClauses: (fieldName (verb1 ...) (verb2...) (verb3 ...))
       // for verbs such as: [set, add, min, filter, ...]
-      for (let [verb, value] of Object.entries(val)) {
+      const doVerbValue = (verb: string, value: ActionValue | FilterSpec) => {
         if (verb === 'filter') {
           this.filters = value as FilterSpec   // value is a FilterSpec Object
         } else {
@@ -330,6 +330,13 @@ export class FieldClause extends ResponseClause {
           let ac = new ActionClause(verb, value as ActionValue) // actions ActionValue[]
           this.actions.push(ac)
         }
+      }
+      if (!val[0]) { // object with multiple [distinct] key-value pairs:
+        const kvl = val as { [k: string]: ActionValue | FilterSpec }
+        Object.entries(kvl).forEach(elt => doVerbValue(...elt));
+      } else {  // array of objects, each with a single key-value pair:
+        const kva = val as { [k: string]: ActionValue | FilterSpec }[];
+        kva.forEach(elt => doVerbValue(...Object.entries(elt)[0]));
       }
     } else {
       // Card initializers! (fieldName value)  vs (fieldName (set value))) for such as [step, stop, rent]

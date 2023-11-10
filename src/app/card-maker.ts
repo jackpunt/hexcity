@@ -1,10 +1,11 @@
-import { C } from "@thegraid/common-lib";
+import { C, F } from "@thegraid/common-lib";
+import { CenterText } from "@thegraid/easeljs-lib";
 import { AlphaMaskFilter, Bitmap, Container, DisplayObject, Graphics, Shape, Text } from "@thegraid/easeljs-module";
 import { EzPromise } from "@thegraid/ezpromise";
 import { NamedContainer } from "./game-play";
 import { GridSpec, ImageGrid } from "./image-grid";
 import { ImageLoader } from "./image-loader";
-import { CenterText, CircleShape, EllipseShape, PaintableShape, RectShape } from "./shapes";
+import { CircleShape, EllipseShape, PaintableShape, RectShape } from "./shapes";
 
 // (define BLACK  '(0    0   0))
 // (define GREY   '(128 128 128))
@@ -280,28 +281,6 @@ export class CI extends Container {
     this.cache(x, y, w, h);
   }
 
-  /** replace weight */
-  family_wght(fam_wght: string, wght?: string | number) {
-    // extract weight info, compose: ${style} ${weight} ${family}
-    const regex = / (\d+|thin|light|regular|normal|bold|semibold|heavy)$/i;
-    const match = fam_wght.match(regex);
-    const weight = wght ?? match?.[1];
-    const family = weight ? fam_wght.slice(0, match.index) : fam_wght;
-    const fontstr = `${family} ${weight ?? 410}`;
-    return fontstr;
-  }
-
-  // https://stackoverflow.com/questions/64583689/setting-font-weight-on-canvas-text
-  composeFontName(size: number, fam_wght: string, wght?: string | number) {
-    // extract weight info, compose: ${style} ${weight} ${family}
-    const style = 'normal'; // assert: style is not included in original fontstr: 'nnpx family weight'
-    const regex = / (\d+|thin|light|regular|normal|bold|semibold|heavy)$/i;
-    const match = fam_wght.match(regex);
-    const weight = match?.[1];
-    const family = weight ? fam_wght.slice(0, match.index) : fam_wght;
-    const fontstr = `${style} ${weight ?? 410} ${size}px ${family}`;
-    return fontstr;
-  }
 
   shrinkFontForWidth(xwide: number, text: string, size0: number, fontspec: string,  ) {
     if (xwide <= 0) xwide += (this.cardw - 2 * this.cm.edge);
@@ -314,10 +293,6 @@ export class CI extends Container {
     return (width <= xwide) ? size0 : Math.floor(size0 * xwide / width);
   }
 
-  fontSize(fontSpec: string) {
-    const pixels = fontSpec.match(/(\d+)px/)?.[1];
-    return Number.parseInt(pixels);
-  }
 
   /** make Text object, optionally shrink to fit xwide.
    * @param size0: requested size of Font, shrink to fit xwide;
@@ -325,9 +300,9 @@ export class CI extends Container {
    * @param xwide: max width of Text, shrink fontSize fit. supply undefined if fam_wght is fully resolved.
    */
   makeText(text: string, size0?: number, fam_wght = this.cm.textFont, color = C.BLACK, xwide?: number) {
-    const fontname0 = (size0 !== undefined) ? this.composeFontName(size0, fam_wght) : fam_wght;
+    const fontname0 = (size0 !== undefined) ? F.composeFontName(size0, fam_wght) : fam_wght;
     const fontsize = (xwide !== undefined) ? this.shrinkFontForWidth(xwide, text, size0, fontname0) : size0;
-    const fontname = (xwide !== undefined) ? this.composeFontName(fontsize, fam_wght) : fontname0;
+    const fontname = (xwide !== undefined) ? F.composeFontName(fontsize, fam_wght) : fontname0;
     return new CenterText(text, fontname, color);
   }
 
@@ -361,7 +336,7 @@ export class CI extends Container {
    */
   setTextTweaks(text: string | Text, fontsize: number, fontname: string, tweaks?: TWEAKS) {
     const { color, dx, dy, lineno, baseline, align, nlh, wght } = tweaks ?? {};
-    if (wght) fontname = this.family_wght(fontname, wght);
+    if (wght) fontname = F.family_wght(fontname, wght);
     const cText = (text instanceof Text) ? text : this.makeText(text, fontsize, fontname, color ?? C.BLACK);
     const fname = cText.font;            // shrink-resolved fontName
     const lineh = cText.lineHeight = nlh ?? (cText.lineHeight > 0 ? cText.lineHeight : cText.getMeasuredLineHeight());
@@ -435,7 +410,7 @@ export class CI extends Container {
     const rx = (oval === 0) ? rad : rad * oval;
     const coin = new EllipseShape(coinColor, rx, ry, '');
     const fontsize = Math.floor(2 * rad * .82); // 110 -> 90;
-    const fontspec = this.composeFontName(fontsize, fontn);
+    const fontspec = F.composeFontName(fontsize, fontn);
     const val = new CenterText(value, fontspec, color); // @ (0,0)
     // vertical offset to align digits (or '*') in circle;
     const offy = this.cm.coinFontAdj + ((value === '*') ? .13 : 0);
@@ -691,20 +666,20 @@ class CI_Dir extends CI_Square {
     const text = this.cardInfo.subtype, width = this.cardw - 2 * this.cm.edge, color = C.BLACK;
     const barSize = Math.round(.0667 * width);
     const xwide0 = width - 2 * barSize, wght0 = 800, tsize0 = 350;
-    const tfont0 = this.family_wght(this.cm.dirFont, wght0);
+    const tfont0 = F.family_wght(this.cm.dirFont, wght0);
     const aText0 = this.makeText(text, tsize0, tfont0, color, xwide0); // shrink to cardw
-    const fsize0 = this.fontSize(aText0.font);
+    const fsize0 = F.fontSize(aText0.font);
     const scale = tsize0/fsize0;
 
     const xwide = xwide0 * scale;
     const tsize = tsize0;   // with xwide, tsize should not be reduced!
     const wght = Math.floor(Math.min(999, wght0 * scale)); // increase wght to account for x-shrinkage.
-    const tfont = this.family_wght(this.cm.dirFont, wght);
+    const tfont = F.family_wght(this.cm.dirFont, wght);
     const aText = this.makeText(text, tsize, tfont, color, xwide); // shrink to cardw
 
     const scaleX = 1 / scale, scalex = scaleX.toFixed(3);
     aText.scaleX = scaleX;
-    // const fsize = this.fontSize(aText.font);
+    // const fsize = F.fontSize(aText.font);
     const dy = tsize / 10;
     this.setTextTweaks(aText, tsize, tfont, { dy });
     (['N', 'E', 'S', 'W'] as ('N'|'E'|'S'|'W')[]).forEach(dir => this.setBlock(dir));

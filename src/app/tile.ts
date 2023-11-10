@@ -4,10 +4,11 @@ import type { GamePlay } from "./game-play";
 import { Hex1, Hex2 } from "./hex";
 import { ImageLoader } from "./image-loader";
 import type { Player } from "./player";
-import { C1, CenterText, HexShape, PaintableShape, TileShape } from "./shapes";
+import { C1, HexShape, PaintableShape, TileShape } from "./shapes";
 import type { DragContext, Dragable, Table } from "./table";
 import { PlayerColor, TP } from "./table-params";
 import { TileSource } from "./tile-source";
+import { CenterText } from "@thegraid/easeljs-lib";
 
 
 class TileLoader {
