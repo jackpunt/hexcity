@@ -566,12 +566,12 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     return bonus
   }
   makeCounter(name: string, initVal: number | string = "0", offx = 0, offy = 0, color: string = "lightgrey", fontSize: number = 38): ValueCounter {
-    let card = this
-    let counter = new ValueCounter(name, initVal, color, fontSize);
+    let card = this, fontName = Card.cardMaker.textFont;
+    let counter = new ValueCounter(name, initVal, color, fontSize, fontName);
     counter.name = name;
     card.addChild(counter);
-    counter.x = offx + card.width / 2;
-    counter.y = offy + card.height / 2;
+    counter.x = offx;
+    counter.y = offy;
     if (!card.counters) card.counters = []; // Array<ValueCounter>
     if (name.endsWith("TokenCounter")) // Temp Policy & High-Tech
       card.counters.push(counter);     // enumerate them so we can delete when discard
@@ -652,8 +652,8 @@ export class Flag extends Card {
     this.scaleX = scale * ownerCard.height/ownerCard.width // scaleX = scale * 1.5 = .15
     this.scaleY = scale
     this.regX = this.regY = 0 // unlike regular Card which is (width/2, height/2)
-    this.x = Flag.offx  // offset from the upper-left corner
-    this.y = Flag.offy
+    this.x = (Flag.offx / scale - ownerCard.width) / 2;  // offset from the upper-left corner
+    this.y = (Flag.offy / scale - ownerCard.height) / 2;
     return
   }
   /**
