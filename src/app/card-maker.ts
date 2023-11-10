@@ -1,7 +1,7 @@
 import { C } from "@thegraid/common-lib";
 import { AlphaMaskFilter, Bitmap, Container, DisplayObject, Graphics, Shape, Text } from "@thegraid/easeljs-module";
 import { EzPromise } from "@thegraid/ezpromise";
-import { NamedObject } from "./game-play";
+import { NamedContainer } from "./game-play";
 import { GridSpec, ImageGrid } from "./image-grid";
 import { ImageLoader } from "./image-loader";
 import { CenterText, CircleShape, EllipseShape, PaintableShape, RectShape } from "./shapes";
@@ -20,6 +20,14 @@ import { CenterText, CircleShape, EllipseShape, PaintableShape, RectShape } from
 // (define BLUE   '(162 162 255))		; lighter, purpler
 // (define PURPLE '(232 115 255))
 // (define GREEN2 `(4 201 0))		; GREEN for HouseTokens
+namespace C1 {
+  export const GREEN = 'rgb(21,180,0)';
+  export const RED = 'rgb(239,32,60)';
+  export const YELLOW = 'rgb(255,128,0)';
+  export const BLUE = 'rgb(162,162,255)'; // lighter, purpler
+  export const BLUE1 = 'rgb(36,36,255)';  // dark blue
+  export const GOLD = 'rgb(235,188,0)';   // aka C.coinGold
+}
 
 // function moa(objs) {let rv={}; objs.forEach(obj => rv = {...rv, ...obj}); return rv;}
 function mergeObjectArray<T>(objs: T[]) {
@@ -105,14 +113,6 @@ type xiarg = number | 'center' | 'fit' | 'card' | 'scale' | 'reg';
 type yiarg = number | 'center' | 'fit' | 'top';
 // type CI = Container; // may be full Card or likely the container to produce a BitMap image/cache
 
-class NamedContainer extends Container implements NamedObject {
-  Aname: string;
-  constructor(name: string, cx = 0, cy = 0) {
-    super();
-    this.Aname = this.name = name;
-    this.x = cx; this.y = cy;
-  }
-}
 
 /** for generated *-deck.ts, with string | number */
 export interface CardInfo2 {
@@ -503,8 +503,6 @@ export class CI extends Container {
     tweaks.dy = texty;
     this.textLow = this.setTextTweaks(text0, undefined, fontn, tweaks);
     this.textLow_min = this.textLow.y - lineh/2 - lead - thick;
-    // this.setLine(this.cText_ymax, 'RED', undefined, 1);
-    // this.setLine(this.textLow_min, 'RED', undefined, 1);
     return;
   }
   textLow_min: number;
@@ -655,14 +653,6 @@ export class CI extends Container {
 class CI_Tile extends CI {
 
 }
-
-class CI_Square extends CI {
-  // road, dots & dir use dotBand
-  // for square of whitespace:
-  get sq() { return (this.cardh - this.cardw) / 2; }
-  override get ty() { return this.sq; } //
-  override get by() { return this.sq; } //
-}
 class CI_Event extends CI {
   // override get top() {
   //   return this.ty; // this.priceBarSize = 0
@@ -676,6 +666,47 @@ class CI_Event extends CI {
     }
   }
 }
+
+class CI_Square extends CI {
+  // road, dots & dir use dotBand
+  // for a square of whitespace:
+  get sq() { return (this.cardh - this.cardw) / 2; }
+  override get ty() { return this.sq; } //
+  override get by() { return this.sq; } //
+}
+
+class CI_Dir extends CI_Square {
+  override makeBase(color = this.cardInfo.color ?? 'pink') {
+    return super.makeBase('rgb(128,128,128');
+  }
+  setBlock(dir: 'N'|'E'|'S'|'W') {
+    const w = this.cardw, allow = this.cardInfo.subtype, h = Math.round(.0667 * w); // 35 for mini-card
+    const color = (allow.includes(dir)) ? C1.GREEN : C1.RED;
+    const rect = new RectShape({ x: -w / 2, y: -w / 2, w, h }, color, '');
+    rect.rotation = ['N','E','S','W'].indexOf(dir) * 90;
+    this.addChild(rect);
+  }
+
+  override setText(text0: string | { key0?: string; size?: number; }): void {
+    const text = this.cardInfo.subtype, width = this.cardw - 2 * this.cm.edge;
+    const barSize = Math.round(.0667 * width);
+    const xwide0 = width - 2 * barSize;
+    const isWide = (text === 'NW' || text === 'SW');
+    const xwide = isWide ? (xwide0 * 1.4) : xwide0;
+    const wght = isWide ? 800 : 900;
+    const tfont = this.family_wght(this.cm.dirFont, wght), tsize = 360; // 400
+    const aText = this.makeText(text, tsize, tfont, undefined, xwide); // shrink to cardw
+    const fsize = this.fontSize(aText.font);
+    const scaleX = xwide0 / xwide, scale = scaleX.toFixed(3);
+    aText.scaleX = scaleX
+    const dy = tsize / 10;
+    const cText = this.cText = this.setTextTweaks(aText, tsize, tfont, { dy });
+    (['N', 'E', 'S', 'W'] as ('N'|'E'|'S'|'W')[]).forEach(dir => this.setBlock(dir));
+    return;
+  }
+
+}
+
 class CI_Road extends CI_Square {
   // roadImages = ['ROT-L', 'ROT-R', 'THRU-S', 'TURN-L', 'TURN-R'];
 
@@ -969,7 +1000,7 @@ export class CardMaker {
         return new CI_Road(this, info);
 
       case 'Direction':
-        return new CI_Square(this, info);
+        return new CI_Dir(this, info);
 
       // Token-type
       case 'Debt':

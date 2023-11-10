@@ -5,7 +5,7 @@ import { CgMessage, CLOSE_CODE } from '@thegraid/wspbclient';
 import { CmType } from '../proto/CmProto';
 import { S } from './basic-intfs';
 import { Card, Deck, Stack } from './card';
-import { CardContainer } from './card-container';
+import { CardContainer, CC } from './card-container';
 import { CardEvent, ValueEvent } from "./card-event";
 import { CardInfo, CardInfo2, CI } from './card-maker';
 import { AlignDeck } from './cardinfo/align-deck';
@@ -25,9 +25,10 @@ import { CmClient } from './cm-client';
 import { CmReferee } from './cm-ref';
 import { DebtForTable } from './Debt';
 import { Effects } from './effects';
-import { GamePlay } from './game-play';
+import { GamePlay, NamedContainer } from './game-play';
 import { MainMap } from './main-map';
 import { GUI, RoboBase, RoboOne } from './robo-player';
+import { RectShape } from './shapes';
 import { LogWriter } from './stream-writer';
 import { Table } from './table';
 import { TP } from './table-params';
@@ -44,7 +45,8 @@ export class GameSetup {
   policyNames: string[];  // names of Policy cards for debug/test spec
   eventNames: string[];  // names of Event cards for debug/test spec
   tileNames: string[];  // names of Tile cards for debug/test spec
-  roadNames: string[];  // names of Tile cards for debug/test spec
+  roadNames: string[];  // names of Road cards for debug/test spec
+  dirNames: string[];   // name of Dir cards for debug/test spec
   ghost: string;
 
   _netState = " " // or "yes" or "ref"
@@ -209,7 +211,8 @@ export class GameSetup {
     this.eventNames = findNames(this.table.policyCards, (c) => c.isEvent())
     this.tileNames = findNames(this.table.tileCards, (c) => c.isTile())
     const roadCards = TP.roadsInEvents ? this.table.policyCards : this.table.tileCards;
-    this.roadNames = findNames(roadCards, (c) => c.type === 'Road')
+    this.roadNames = findNames(roadCards, (c) => c.type === 'Road');
+    this.dirNames = findNames(this.table.dirCards, (c) => true);
 
     if (loadCards) { // was hacked back @ "new stime (in CC)"
       // flatten promiseArrays:
@@ -235,9 +238,15 @@ export class GameSetup {
     this.mainMap.makeLegalMarks();
     // put it someplace accessible [for now; until we make 'this' accessible]
     if (!!this.table.stage.canvas) {
-      let gui = this.makeParamGUI(this.table.scaleCont), map = this.table.mainMap, scaleCont = this.table.scaleCont
+      let gui = this.makeParamGUI(this.table.scaleCont), map = this.table.mainMap.parent, scaleCont = this.table.scaleCont
       this.paramGUI = this.table.paramGUI = gui
-      scaleCont.addChildAt(gui, scaleCont.getChildIndex(map) - 1)
+      scaleCont.addChildAt(gui, scaleCont.getChildIndex(map))
+      const contCardGUI = new NamedContainer('CardGUI', -1500, 1300);
+      const bgr = new RectShape({x: -20, y: -20, w: 170, h: 400}, 'rgb(100,100,100,.5)', '');
+      contCardGUI.addChild(bgr);
+      scaleCont.addChild(contCardGUI)
+      const gui2 = this.makeCardGUI(contCardGUI, 0, 0);
+      CC.dragger.makeDragable(contCardGUI);
       this.table.bindKeysToScale("a") // reset scaling params with table.paramGUI
     }
 
@@ -257,8 +266,10 @@ export class GameSetup {
   }
   defStyle = { rootColor: "rgba(160,160,160,.5)", arrowColor: "grey", textAlign: 'right' }
 
-  makeParamGUI(parent: Container): ParamGUI {
+  /** param x (3*cw+1*ch+6*m) + max(line.width) - (max(choser.width) + 20) */
+  makeParamGUI(parent: Container, x = -1500, y = 300): ParamGUI {
     let gui = new ParamGUI(TP, this.defStyle), CyC = CycleChoice
+    gui.name = 'mainParamGUI';
     let roboChoice = [{ value: GUI, text: "GUI" }, { value: RoboOne, text: "RoboOne" }]
     //gui.makeParamSpec("Start", ["", "yes", "no"], { fontSize: 40, fontColor: "red" })
     gui.makeParamSpec("Start", ["yes", "no"], { chooser: CycleChoice, fontSize: 40, fontColor: "red" })
@@ -270,31 +281,6 @@ export class GameSetup {
     gui.makeParamSpec("vpToWin", [20, 30])
     gui.makeParamSpec("nDebtCards", [0, 32, 40, 48])
     gui.makeParamSpec("maxDebtOfPlayer", [14, 16, 48])
-    {
-      gui.makeParamSpec("getTile", this.tileNames, { style: { textAlign: 'left' } })
-      gui.makeParamSpec("drawTile", this.tileNames, { style: { textAlign: 'left' } })
-      gui.spec("getTile").onChange = (item: ParamItem) => { getCardByName(item, this.table.tileDeck) }
-      gui.spec("drawTile").onChange = (item: ParamItem) => { drawByName(item, this.table.tileDeck) }
-    }
-    if (this.policyNames.length > 1) {
-      gui.makeParamSpec("getPolicy", this.policyNames, { style: { textAlign: 'left' } })
-      gui.makeParamSpec("drawPolicy", this.policyNames, { style: { textAlign: 'left' } })
-      gui.spec("getPolicy").onChange = (item: ParamItem) => { getCardByName(item, this.table.policyDeck)}
-      gui.spec("drawPolicy").onChange = (item: ParamItem) => { drawByName(item, this.table.policyDeck)}
-    }
-    if (this.eventNames.length > 1) {
-      gui.makeParamSpec("getEvent", this.eventNames)
-      gui.makeParamSpec("drawEvent", this.eventNames)
-      gui.spec("getEvent").onChange = (item: ParamItem) => { getCardByName(item, this.table.policyDeck)}
-      gui.spec("drawEvent").onChange = (item: ParamItem) => { drawByName(item, this.table.policyDeck)}
-    }
-    if (this.roadNames.length > 1) {
-      gui.makeParamSpec("getRoad", this.roadNames)
-      gui.makeParamSpec("drawRoad", this.roadNames)
-      const roadDeck = TP.roadsInEvents ? this.table.policyDeck : this.table.tileDeck;
-      gui.spec("getRoad").onChange = (item: ParamItem) => { getCardByName(item, roadDeck)}
-      gui.spec("drawRoad").onChange = (item: ParamItem) => { drawByName(item, roadDeck)}
-    }
     gui.makeParamSpec("moveDwell", [600, 300, 100])
     gui.makeParamSpec("flipDwell", [200, 100, 75])
     gui.makeParamSpec("mapRows", [5, 6, 7, 8])
@@ -320,31 +306,19 @@ export class GameSetup {
     gui.spec("Robo-1").onChange = (item: ParamItem) => { makeRobo(item.value, 1) }
 
     gui.spec("chooseDir").onChange = (item: ParamItem) => this.testChooseDir(item)
-    let getCardByName = (item: ParamItem, cc: CardContainer): boolean => {
-      let card = cc.getStack().findCard(item.text)
-      if (!!item.text) {
-        !!card && cc.addCard(card)
-        console.log(stime(this, `.getCardByName: ${item.text} on ${cc.name}`), { card, cc })
-      }
-      this.paramGUI.selectValue(item.fieldName, "") // unselect item.text, so we can do it again! (reentrant!)
-      return !!card
-    }
-    let drawByName = (item: ParamItem, cont: CardContainer) => {
-      if (!getCardByName(item, cont)) return
-      let card = cont.bottomCardOfStack()
-      if (card.type == "Back") return // if requested item was not found...
-      this.table.curPlayer.draws = Math.max(1, this.table.curPlayer.draws); // enable draw
-      this.table.drawFlipped(new CardEvent(S.flipped, card, 0, 0, cont)) // FORCE draw
-    }
 
     parent.addChild(gui)
-    gui.x = -1500 // (3*cw+1*ch+6*m) + max(line.width) - (max(choser.width) + 20)
-    gui.y = 300
+    gui.x = x; // (3*cw+1*ch+6*m) + max(line.width) - (max(choser.width) + 20)
+    gui.y = y;
     gui.makeLines()
     gui.selectValue("Robo-0", RoboOne)
     gui.selectValue("Robo-1", RoboOne)
-    gui.stage.update()
+    gui.stage.update();
+    this.bindKeys(gui);
+    return gui
+  }
 
+  bindKeys(gui: ParamGUI) {
     let setNet = (arg: string) => { this.paramGUI.selectValue("Network", arg) }
     let step = () => { this.table.curPlayer.initMoveHistory(1) } // moveDistInit(1)
     let give = (arg: object) => {
@@ -437,6 +411,66 @@ export class GameSetup {
     KeyBinder.keyBinder.setKey('M-c', { thisArg: this, func: () => { this.netState = "yes" } })
     KeyBinder.keyBinder.setKey('M-d', { thisArg: this, func: () => { this.netState = "no" } })
     return gui
+  }
+
+  makeCardGUI(parent: Container, x = 0 , y = 0) {
+    let gui = new ParamGUI(TP, this.defStyle), CyC = CycleChoice
+    let getCardByName = (item: ParamItem, cc: CardContainer) => {
+      let card = cc.getStack().findCard(item.text)
+      if (!!item.text) {
+        !!card && cc.addCard(card)
+        console.log(stime(this, `.getCardByName: ${item.text} on ${cc.name}`), { card, cc })
+      }
+      this.paramGUI.selectValue(item.fieldName, "") // unselect item.text, so we can do it again! (reentrant!)
+      return card
+    }
+    let drawByName = (item: ParamItem, cont: CardContainer) => {
+      if (!getCardByName(item, cont)) return
+      let card = cont.bottomCardOfStack()
+      if (card.type == "Back") return // if requested item was not found...
+      this.table.curPlayer.draws = Math.max(1, this.table.curPlayer.draws); // enable draw
+      this.table.drawFlipped(new CardEvent(S.flipped, card, 0, 0, cont)) // FORCE draw
+    }
+
+    {
+      gui.makeParamSpec("getTile", this.tileNames, { style: { textAlign: 'left' } })
+      gui.makeParamSpec("drawTile", this.tileNames, { style: { textAlign: 'left' } })
+      gui.spec("getTile").onChange = (item: ParamItem) => { getCardByName(item, this.table.tileDeck) }
+      gui.spec("drawTile").onChange = (item: ParamItem) => { drawByName(item, this.table.tileDeck) }
+    }
+    if (this.policyNames.length > 1) {
+      gui.makeParamSpec("getPolicy", this.policyNames, { style: { textAlign: 'left' } })
+      gui.makeParamSpec("drawPolicy", this.policyNames, { style: { textAlign: 'left' } })
+      gui.spec("getPolicy").onChange = (item: ParamItem) => { getCardByName(item, this.table.policyDeck)}
+      gui.spec("drawPolicy").onChange = (item: ParamItem) => { drawByName(item, this.table.policyDeck)}
+    }
+    if (this.eventNames.length > 1) {
+      gui.makeParamSpec("getEvent", this.eventNames)
+      gui.makeParamSpec("drawEvent", this.eventNames)
+      gui.spec("getEvent").onChange = (item: ParamItem) => { getCardByName(item, this.table.policyDeck)}
+      gui.spec("drawEvent").onChange = (item: ParamItem) => { drawByName(item, this.table.policyDeck)}
+    }
+    if (this.roadNames.length > 1) {
+      gui.makeParamSpec("getRoad", this.roadNames)
+      gui.makeParamSpec("drawRoad", this.roadNames)
+      const roadDeck = TP.roadsInEvents ? this.table.policyDeck : this.table.tileDeck;
+      gui.spec("getRoad").onChange = (item: ParamItem) => { getCardByName(item, roadDeck)}
+      gui.spec("drawRoad").onChange = (item: ParamItem) => { drawByName(item, roadDeck)}
+    }
+    {
+      gui.makeParamSpec('getDir', this.dirNames)
+      gui.spec("getDir").onChange = (item: ParamItem) => {
+        const player = this.table.curPlayer;
+        player.reshuffleDirCards(player.dirCards.getStack())
+        player.setDirCard(getCardByName(item, player.dirCards));
+      }
+    }
+    parent.addChild(gui)
+    gui.x = x;
+    gui.y = y;
+    gui.makeLines()
+    gui.stage?.update()
+    return gui;
   }
 
   /** If network: negotiate TPs; else just restart() */

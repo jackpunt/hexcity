@@ -242,7 +242,7 @@ export class CmClient extends GgClient<CmMessage> {
         // when recieve params with NO changes (signal of Accept), then begin game
       }
     })
-    this.table.paramGUI.stage.update()
+    pg?.stage.update()
     this.sendCgAck("params") // message.cmType
   }
 

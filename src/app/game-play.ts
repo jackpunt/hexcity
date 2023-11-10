@@ -1,4 +1,5 @@
 import { stime } from '@thegraid/common-lib';
+import { Container } from '@thegraid/easeljs-module';
 import { C, Obj, S } from './basic-intfs';
 import { Card, HouseToken } from './card';
 import { CC, CardContainer } from './card-container';
@@ -14,6 +15,15 @@ import { Tile } from './tile';
 import { ValueCounter } from "./value-counter";
 
 export type NamedObject = { name?: string, Aname?: string };
+
+export class NamedContainer extends Container implements NamedObject {
+  Aname: string;
+  constructor(name: string, cx = 0, cy = 0) {
+    super();
+    this.Aname = this.name = name;
+    this.x = cx; this.y = cy;
+  }
+}
 
 export class GamePlay {
   table: Table
