@@ -467,8 +467,8 @@ export class CI extends Container {
     const aText = this.makeText(text, tsize, tfont, undefined, 0);
     const cText = this.cText = this.setTextTweaks(aText, tsize, tfont, { dy });
     const lineh = cText.lineHeight;
-    // this.setLine(this.cText.y - lineh / 2, 'YELLOW', undefined, 1);
-    this.cText_ymax = cText.y - lineh / 2 + cText.lineHeight * (text.split('\n').length);
+    // this.setLine(cText.y + lineh * (0 - .5), 'YELLOW', undefined, 1);
+    this.cText_ymax = cText.y + lineh * (text.split('\n').length - .75);
     return;
   }
 
@@ -509,8 +509,8 @@ export class CI extends Container {
 
   ovals = {Lake: 'rgb(58,111,235)', Plaza: 'yellow', Park: 'rgb(21,180,0)', Playground: 'rgb(185,83,0)'}
   setOval(color: string, margin = 40) {
-    const y0 = this.cText_ymax, y1 = this.textLow_min ?? this.cardh / 2 - this.by;
-    const rady = (y1 - y0 - this.cText.lineHeight) * .5;
+    const y0 = this.cText_ymax || this.top - this.cardh / 2, y1 = this.textLow_min ?? this.cardh / 2 - this.by;
+    const rady = (y1 - y0 - (this.cText?.lineHeight ?? this.cm.textSize * 1.2)) * .5;
     const rx = this.cardw / 2 - margin;
     const oval = new EllipseShape(color, rx, rady, '');
     oval.y = (y0 + y1) / 2;
@@ -688,19 +688,25 @@ class CI_Dir extends CI_Square {
   }
 
   override setText(text0: string | { key0?: string; size?: number; }): void {
-    const text = this.cardInfo.subtype, width = this.cardw - 2 * this.cm.edge;
+    const text = this.cardInfo.subtype, width = this.cardw - 2 * this.cm.edge, color = C.BLACK;
     const barSize = Math.round(.0667 * width);
-    const xwide0 = width - 2 * barSize;
-    const isWide = (text === 'NW' || text === 'SW');
-    const xwide = isWide ? (xwide0 * 1.4) : xwide0;
-    const wght = isWide ? 800 : 900;
-    const tfont = this.family_wght(this.cm.dirFont, wght), tsize = 360; // 400
-    const aText = this.makeText(text, tsize, tfont, undefined, xwide); // shrink to cardw
-    const fsize = this.fontSize(aText.font);
-    const scaleX = xwide0 / xwide, scale = scaleX.toFixed(3);
-    aText.scaleX = scaleX
+    const xwide0 = width - 2 * barSize, wght0 = 800, tsize0 = 350;
+    const tfont0 = this.family_wght(this.cm.dirFont, wght0);
+    const aText0 = this.makeText(text, tsize0, tfont0, color, xwide0); // shrink to cardw
+    const fsize0 = this.fontSize(aText0.font);
+    const scale = tsize0/fsize0;
+
+    const xwide = xwide0 * scale;
+    const tsize = tsize0;   // with xwide, tsize should not be reduced!
+    const wght = Math.floor(Math.min(999, wght0 * scale)); // increase wght to account for x-shrinkage.
+    const tfont = this.family_wght(this.cm.dirFont, wght);
+    const aText = this.makeText(text, tsize, tfont, color, xwide); // shrink to cardw
+
+    const scaleX = 1 / scale, scalex = scaleX.toFixed(3);
+    aText.scaleX = scaleX;
+    // const fsize = this.fontSize(aText.font);
     const dy = tsize / 10;
-    const cText = this.cText = this.setTextTweaks(aText, tsize, tfont, { dy });
+    this.setTextTweaks(aText, tsize, tfont, { dy });
     (['N', 'E', 'S', 'W'] as ('N'|'E'|'S'|'W')[]).forEach(dir => this.setBlock(dir));
     return;
   }
