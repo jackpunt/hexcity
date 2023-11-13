@@ -1,6 +1,6 @@
 {
   "name": "hexcity",
-  "version": "0.0.0",
+  "version": "0.5.0",
   "description": "Browser-based client to play hexcity (standalone or with Client-Group Server)",
   "browser": "true",
   "scripts": {
