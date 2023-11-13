@@ -247,7 +247,7 @@ export class GameSetup {
       scaleCont.addChild(contCardGUI)
       const gui2 = this.makeCardGUI(contCardGUI, 0, 0);
       CC.dragger.makeDragable(contCardGUI);
-      this.table.bindKeysToScale("a") // reset scaling params with table.paramGUI
+      this.table.bindKeysToScale("z") // reset scaling params with table.paramGUI
     }
 
     this.table.setNextPlayer(0); // enable Player0 to distArrange

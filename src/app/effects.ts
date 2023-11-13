@@ -1299,7 +1299,9 @@ class SpecialParser {
     // when: { undefined: "arrivalFrom", arrivalFrom: {set: "Airport"}, ...}
     // CAR(predActionsObj) --> [pred,val]
     // CDR(predActionsObj) --> actionsObj
-    let pavAry = Object.entries(predActionsObj)
+    const arrayEntries = (ary: {[key: string]: object}[]) => ary.map(kv => Object.entries(kv)[0]);
+    // Either: array of singleton objects OR multi-key object: --> new [pred, val][];
+    let pavAry = (predActionsObj[0]) ? arrayEntries(predActionsObj as []) : Object.entries(predActionsObj);
     let [pred, val] = pavAry.shift() // [[undefined, "arrivalFrom"] [arrivalFrom, {}]]
     let respObject = Obj.fromEntries(pavAry); // actions to take when predicate is true
     console.log(stime(), "SC.specialParser[when]", {pred: pred, val: val, dr: sc.zdr}, "respObject:", respObject)
@@ -1501,7 +1503,7 @@ export class Effects {
    * @return the DataRecord[s] that were added to the db
    */
   addCardProps(card: Card, tag: string, props: object = card.props): DataRecord[] {
-    let rv = Object.entries(props || {}).map(keyval => this.addPropsClause(card, keyval[0], keyval[1]), this)
+    let rv = Object.entries(props || {}).map(([key, val]) => this.addPropsClause(card, key, val), this)
     let log = {card: card.name, row: card.slotInfo.row, col: card.slotInfo.col, cost: card.slotInfo.stack[S.buildCost]}
     console.log(stime(this, `.addCardProps: ${tag}`), log, {db: Array.from(this.dataRecs)})
     return rv

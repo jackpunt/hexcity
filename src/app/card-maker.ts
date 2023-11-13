@@ -128,7 +128,7 @@ export interface CardInfo2 {
   rent?: number | string;
   vp?: string | number;
   ext?: string | null;
-  text?: string | null | object;
+  text?: string | null | object; // object is {key0: "text", size: number} NOTE: that 'size' is rarely needed, since we shrink-to-fit
   textLow?: string | null | object;
   ispec?: [name?: string, x?: xiarg, y?: yiarg, w?: number, h?: number | 'xs']; // ~/Google Drive/jpeckj/Estates/images/...
   props?: {                 // cardProps: event/policy/tile script
