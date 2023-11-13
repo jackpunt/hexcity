@@ -29,16 +29,17 @@ export class DebtForTable {
     this.vcPlayer = new VCPlayer(table, C.BLACK, null, null) // BLACK identifies VCPlayer (without type VCPlayer)
 
     // first find Debt tokens, and put into this.mainCont:
-    let debtTokens = Debt.resetDebtCards(table, [])
-    let debtSize: WH = Debt.WH(); debtSize.width *= 2; debtSize.height *= 2;
+    let debtTokens = Debt.resetDebtCards(table, []), debtSize = Debt.WH();
+    let { width, height } = debtSize, ds = Card.scale;
+    const counterOffset = { x: width * ds * .4, y: height * ds * .8 }
     let marx = mainMap.marginSize.width, mary = mainMap.marginSize.height
-    let locXYD: XY = { x: mainMap.leftEdge(marx, 1.25) - debtSize.width / 2, y: mainMap.topEdge(mary, -1.9) }
+    let locXYD: XY = { x: mainMap.leftEdge(marx, 1.25) - width / 2, y: mainMap.topEdge(mary, -1.9) }; // upper-left
 
     let mainCont: DebtContainer = table.makeCardCont(mainMap.parent as ContainerAt, debtTokens,
       {
         clazz: DebtContainer, name: S.MainDebt, x: locXYD.x, y: locXYD.y,
         bg: false, dropOnCard: true, size: debtSize, backCard: false, markColor: DebtContainer.markColor,
-        counter: { color: "lightgreen", fontSize: 14, offset: { x: 20, y: undefined } as XY }
+        counter: { color: "lightgreen", fontSize: 14, offset: counterOffset }
       })
     this.mainCont = mainCont
     mainCont.host = mainCont.parent
@@ -47,15 +48,12 @@ export class DebtForTable {
     table.allPlayers.forEach(plyr => {
       let contName = plyr.name + "-Debt"
       let playersCont = plyr.plyrCnts.parent as ContainerAt
-      let debtSize: WH = Debt.WH();
-      let slotSize = { width: debtSize.width * 2, height: debtSize.height * 2 };
-      let marx = plyr.plyrDist.marginSize.width * 0, mary = plyr.plyrDist.marginSize.height * 0
-      let locx = plyr.plyrDist.leftEdge(marx, -.5), locy = plyr.plyrDist.bottomEdge(mary, -.25) - slotSize.height / 2
+      let locx = plyr.plyrDist.leftEdge(0, -.5), locy = plyr.plyrDist.bottomEdge(0, -.25) - height / 2
 
       let plyrDebt = plyr.plyrDebt = table.makeCardCont(playersCont, Debt.WH(), {
         clazz: DebtContainer, name: contName, x: locx, y: locy, xl: .5,
-        bg: false, dropOnCard: true, size: slotSize, backCard: false, markColor: DebtContainer.markColor,
-        counter: { color: "lightgreen", fontSize: 14, offset: { x: 20, y: undefined } as XY }
+        bg: false, dropOnCard: true, size: debtSize, backCard: false, markColor: DebtContainer.markColor,
+        counter: { color: "lightgreen", fontSize: 14, offset: counterOffset }
       }) as DebtContainer
       playersCont.setChildIndex(plyrDebt, playersCont.numChildren - 2); // under the overCont, above plyrConts
       plyrDebt.owner = plyr

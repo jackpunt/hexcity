@@ -6,8 +6,10 @@ import { CardContainer } from './card-container';
 
 import { ValueCounter as CommonValueCounter } from '@thegraid/easeljs-lib';
 
-/** Text in a colored circle, possibly with a lable */
-
+/** Container with a Box (colored circle/ellispe/shape), a value Text, and optional label Text.
+ *
+ * Extend standard ValueCounter to attachToStack(), and CardContainer offset methods...
+ */
 export class ValueCounter extends CommonValueCounter {
   private playerColor(color: string) { return (TP.playerColors.includes(color) || TP.playerRGBcolors.includes(color)) }
   override setValue(value: number | string, color?: string, fontSize?: number, fontName?: string,
@@ -47,7 +49,11 @@ export class ValueCounter extends CommonValueCounter {
     updfn.call(counter, new CardEvent("initial", undefined, row, col, cont));
   }
 
-  // these should all be methods of CardContainer!
+  counterName(cont: CardContainer, row: number, col: number): string {
+    return "Counter:" + cont.name + "[" + row + "][" + col + "]";
+  }
+
+  // these should all be methods of CardContainer! (table uses bottomEdge -> marginY)
   // leftEdge, rightEdge, topEdge, bottomEdge ?
   cardEdgeAndMarginX(cont: CardContainer, edge: number = 1, mar = 0) {
     // edge 0 = leftEdge, edge 1 = right edge
@@ -74,8 +80,5 @@ export class ValueCounter extends CommonValueCounter {
   /** offset.x from center to right edge of card */
   cardRightEdge(cont: CardContainer, mar = 0): number {
     return cont.slotSize.width / 2 - this.cardMarginX(cont, mar);
-  }
-  counterName(cont: CardContainer, row: number, col: number): string {
-    return "Counter:" + cont.name + "[" + row + "][" + col + "]";
   }
 }

@@ -157,7 +157,7 @@ export class DataRecord implements DRSpec {
     }
     let pushSpecialClause = (key: string, val: any): boolean => {
       let sc = new SpecialClause(this, key, val).parseSpecial(responses)     // parse may modify name, value, etc.
-      if (!SpecialClause.hasSpecialHandler(sc.specialName)) return false
+      if (!sc.hasSpecialHandler(sc.specialName)) return false
       responses.push(sc)
       return true
     }
@@ -176,7 +176,11 @@ export class DataRecord implements DRSpec {
       try { alert(msg+respObject) } catch {}
       console.log(stime(this, ".addResponses:"), {msg, dr: this})
     }
-    Object.entries(respObject).forEach(([key, val]) => parseKeyVal(key, val))
+    if (respObject[0]) {
+      (respObject as [key: string, val: object][]).forEach(([key, val]) => parseKeyVal(key, val));
+    } else {
+      Object.entries(respObject).forEach(([key, val]) => parseKeyVal(key, val))
+    }
     return responses
   }
 
@@ -358,8 +362,7 @@ export class FieldClause extends ResponseClause {
     /** satisfy any/one condition */
     let orSpec = (specs: FilterSpec[]):boolean => {
       // if any [sel,val] spec evals to TRUE, return TRUE; else return FALSE
-      let rv:boolean = (!!Object.entries(specs).find((sva) => evalSelectVal(sva[0], sva[1])));
-      return rv;
+      return !!Object.entries(specs).find(([select, value]) => evalSelectVal(select, value));
     }
     /** match any/one string */
     let orString = (target: string, vals: string | string[]) => {
@@ -401,10 +404,15 @@ export class FieldClause extends ResponseClause {
     }
     /** ANDify across the FilterSpec */
     let evalSpec = (spec: FilterSpec): boolean => {
-      for (let [select, value] of Object.entries(spec)) {
-        if (!evalSelectVal(select, value)) return false // if any FilterSpec is false, return false
-      }
-      return true;
+      // if any FilterSpec is false, return false
+      return (spec['key0']) ?
+        !(spec['key0'] as FilterSpec[]).find(specn => { // array of single-item objects:
+          let [select, value] = Object.entries(specn)[0];
+          return !evalSelectVal(select, value);
+        }) :
+        !Object.entries(spec).find(([select, value]) => { // object with multi-items:
+          return !evalSelectVal(select, value);
+        })
     }
     return this.filters ? evalSpec(this.filters) : true;
   }
@@ -694,10 +702,8 @@ export class SpecialClause extends ResponseClause {
 
   // Special "Values": PlayerLastBuy, doUrbanRenewal, player/playerSelect, player_high_roads... ,
   // penalty, NoHouse, OnlyHouse, 'calcRangeToAirport',
-  static instance = new SpecialClause(undefined, "singletonInstance");
-  /** each SpecialClause.specialName identifies a method of SpecialClause */
-  static hasSpecialHandler(key: string): boolean {
-    return (typeof (SpecialClause.instance[key]) == 'function');
+  hasSpecialHandler(key: string): boolean {
+    return (typeof (this[key]) == 'function');
   }
 
   /** when hasSpecialHandler, may also have SpecialParser.
@@ -1240,6 +1246,8 @@ export class SpecialClause extends ResponseClause {
   /** Lawyer intercedes: */
   undoLastEffect(card: Card, player: Player) { }
 }
+
+/** methods invoked by SpecialClause.parseSpecial() via .call(...) */
 class SpecialParser {
   responses: ResponseArray
   /** get the previous ResponseClause */
@@ -1265,9 +1273,9 @@ class SpecialParser {
   }
   // "Event: {withPlayer:{tile_owner:{coins:{add:cost},owner:{set:undefined},offerToBuy:null}}"
   /** {withPlayer: {value: {fieldClause, ..., specialClause, ...}} */
-  withPlayer(sc: SpecialClause, valueAndResponses: object) {
+  withPlayer(sc: SpecialClause, valueAndResponses: [value: string, resp: object]) {
     if (sc.specialValue === true) return   // special form: {withPlayer: true} signals per-player step-effect
-    let [value, responseObject] = Object.entries(valueAndResponses)[0]
+    const [value, responseObject] = [...valueAndResponses];
     sc.specialValue = value
     sc.responses = []
     sc.zdr.addResponses(responseObject, sc.responses)// withPlayer

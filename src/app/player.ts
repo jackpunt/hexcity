@@ -128,7 +128,7 @@ export class Player extends EventDispatcher {
   direction: string;         // one or more of: /[NESW]+/ subtype of top of plyrDir.getStack()
   blockedDir: string[] = []; // [N,E,S,W]  set by blockedDirAdjust effects
   dirSpec: DirSpec;          // as determined by nextDirection
-  moveDir_: string;           // current move direction (from Road or chooseDir or ...) or moveTo, transitTo
+  moveDir_: string = 'N';    // current move direction (from Road or chooseDir or ...) or moveTo, transitTo
   get moveDir() { return this.moveDir_ }; set moveDir(dir: string) { this.moveDir_ = dir || this.direction}
   // protect moveDir from building Mall under a player (so: no onStop to set reverseDir)
   drawN: number = 1;         // how many cards to flip per Draw action.
@@ -290,7 +290,7 @@ export class Player extends EventDispatcher {
       ce.cont.moveRipple(ce, (card:Card) => { this.dirDiscard.addCard(card) })
     }
     plyrDir.on(S.moved, moveRippleToDirDiscard, this) // (never a DropTarget)
-    let scale1 = (ce:CardEvent) => { ce.card.scaleX = ce.card.scaleY = 1 }
+    let scale1 = (ce:CardEvent) => { ce.card.scaleX = ce.card.scaleY = Card.scale; }
 
     plyrProjs.on(S.clicked, this.onPlyrProjClicked, this) // check for isDiscardActivated()
     plyrProjs.on(S.moved, plyrProjs.shrinkCards, plyrProjs)[S.Aname] = "shrink"

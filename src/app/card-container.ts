@@ -34,7 +34,7 @@ class DropMark extends Shape implements HasSlotInfo {
   height: number
   constructor(color: string, wh: WH, parent: Container) {
     super()
-    this.graphics.beginFill(color).drawRect(-wh.width/2, -wh.height/2, wh.width, wh.height)
+    this.graphics.beginFill(color).drawRect(-wh.width / 2, -wh.height / 2, wh.width, wh.height)
     this.width = wh.width
     this.height = wh.height
     this[S.Aname] = parent.name
@@ -467,7 +467,11 @@ export class CardContainer extends Container {
    */
   private setSlotSizeFromBack(stack: Card[], defSize:WH= this.defCardSize) {
     this.back = (stack.find(c => c.type == "Back"))
-    let wh: WH = this.back || ((stack.length>0 && stack[0].width) ? stack[0] : defSize )
+    let wh: WH = this.back
+    if (!wh) {
+      const card = stack[0];
+      wh = card ? { width: card.width * card.scaleX, height: card.height * card.scaleY } : defSize;
+    }
     //console.log(stime(this, ".setSlotSizeFromBack="), wh, "this.back=", this.back)
     this.backWidth = wh.width;
     this.backHeight = wh.height;
@@ -907,12 +911,12 @@ export class CardContainer extends Container {
    }
 
    /** Shrink and then spread the Cards over the area of this CardContainer */
-  shrinkCards(ce: CardEvent, shrink=.9) {
-    if (!!ce.card) ce.card.scaleX = ce.card.scaleY = 1 // reset the card being removed from this Container
+  shrinkCards(ce: CardEvent, shrink = .9 * Card.scale) {
+    if (!!ce.card) ce.card.scaleX = ce.card.scaleY = Card.scale; // reset the card being removed from this Container
     // offset cards in stack
     let stack = this.getStack(ce.row, ce.col), n = stack.length;
     if (n == 0) return;
-    if (n == 1) shrink = 1;
+    if (n == 1) shrink = Card.scale;
     let card = stack[0] // representative card (not if a HouseToken card!)
     let cw = card.width * shrink, dw = this.slotSize.width - cw
     let ch = card.height * shrink, dh = this.slotSize.height - ch
@@ -1025,6 +1029,8 @@ export class CardContainer extends Container {
       // detect *first* drag event, emit S.dragStart
       //console.log(stime(this, ".addCard.dragFunc0: this="), this.name, parent.name, "lastCont:"+dragCtx.lastCont.name, "srcCont:"+dragCtx.srcCont.name, cont.name, card.name, row, col)
       if (dragCtx.first) {
+        card.x -= (dragCtx.dxy.x * card.scaleX - dragCtx.dxy.x); dragCtx.dxy.x *= card.scaleX; // TODO: fix dragger.ts
+        card.y -= (dragCtx.dxy.y * card.scaleY - dragCtx.dxy.y); dragCtx.dxy.y *= card.scaleY;
         cont.allowDropCacheFalse = cont.allowDropCacheTrue = undefined;
         // dragStart assumes Card is still where it was this addCard!
         card.setOrigSlot({ cont, row, col, stack: card.slotInfo.stack } as SlotInfo) // save origSlot (isDiscardActivated)

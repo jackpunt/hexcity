@@ -50,7 +50,7 @@ type XLINE = [y: number, color?: string, margin?: number, thick?: number];
 type XIMAGE = [name: string | null,
   x?: number | "center" | "fit" | "card",
   y?: number | "center" | "fit" | "top",
-  w?: number,
+  w?: number | "ys",
   h?: number | "xs" // match width (x-size)
 ];   // for now, image: null OR image: [null, x, y, w, h]; never image: 'fname'
 type LVAL = string|number|any[];
@@ -178,7 +178,7 @@ export class CI extends Container {
 
   ciPromise: EzPromise<CI>;
 
-  constructor(public cm: CardMaker, public cardInfo: CardInfo2, scale = cm.scale) {
+  constructor(public cm: CardMaker, public cardInfo: CardInfo2, scale: number = 1) {
     super();
     this.scaleX = this.scaleY = scale;
 
@@ -197,8 +197,8 @@ export class CI extends Container {
     }
     this.finishWithXimage(ximage);
   }
-  get ty() { return this.cardInfo.ty ?? this.cm.topBand }
-  get by() { return this.cardInfo.by ?? this.cm.bottomBand }
+  get ty() { return this.cardInfo.ty ?? this.cm.tband; }
+  get by() { return this.cardInfo.by ?? this.cm.bband; }
   priceBarSize = 0;         // until updated by setPriceBar()
   get top() { return this.ty + this.priceBarSize }
 
@@ -388,46 +388,22 @@ export class CI extends Container {
       return
     };
     const size = this.cm.coinSize;
-    const h = this.priceBarSize = Math.round(2.222 * size); // 2 * (size + 5)
-    const cy = h / 2, cx = this.cardw / 2 - this.cm.edge - size;
+    const pbs = this.priceBarSize = Math.round(2.222 * size); // 2 * (size + 5)
+    const cy = pbs / 2, cx = this.cardw / 2 - this.cm.edge - size;
     const bar = new NamedContainer('PriceBar', 0, cy);
     bar.y = this.ty - cardh / 2;
-    const band = new RectShape({ x, y: 0, w, h }, color, '');
-    const stepc = (step === undefined || step === null) ? undefined : this.makeCoin(step, size, -cx, cy);
-    const stopc = (stop === undefined || stop === null) ? undefined : this.makeCoin(stop, size, 0, cy);
-    const rentc = (rent === undefined || rent === null) ? undefined : this.makeCoin(rent, size, cx, cy);
+    const band = new RectShape({ x, y: 0, w, h: pbs }, color, '');
+    const stepc = (step === undefined || step === null) ? undefined : this.cm.makeCoin(step, size, -cx, cy);
+    const stopc = (stop === undefined || stop === null) ? undefined : this.cm.makeCoin(stop, size, 0, cy);
+    const rentc = (rent === undefined || rent === null) ? undefined : this.cm.makeCoin(rent, size, cx, cy);
     bar.addChild(band, stepc, stopc, rentc);
     this.addChild(bar);
-  }
-
-  makeCoin(value: number | string, rad = this.cm.coinSize, cx = 0, cy = 0,
-    args?: { color?: string, coinColor?: string, fontn?: string, r180?: boolean, oval?: number }) {
-    value = `${value}`;          // stringify if numeric
-    const def = { color: C.BLACK, coinColor: C.coinGold, fontn: this.cm.coinFont, r180: false, oval: 0 };
-    const { color, coinColor, fontn, r180, oval } = { ...def, ...args };
-    const rv = new NamedContainer(`Coin(${value})`, cx, cy);
-    const ry = (oval === 0) ? rad : rad;
-    const rx = (oval === 0) ? rad : rad * oval;
-    const coin = new EllipseShape(coinColor, rx, ry, '');
-    const fontsize = Math.floor(2 * rad * .82); // 110 -> 90;
-    const fontspec = F.composeFontName(fontsize, fontn);
-    const val = new CenterText(value, fontspec, color); // @ (0,0)
-    // vertical offset to align digits (or '*') in circle;
-    const offy = this.cm.coinFontAdj + ((value === '*') ? .13 : 0);
-    const offx = ((value === '4') ? -.03 : 0);
-    val.y = fontsize * offy;
-    val.x = fontsize * offx;
-    val.scaleX = this.cm.coinFontX;  // narrow/compact the font
-    if (r180) val.rotation = 180;
-    rv.addChild(coin, val);
-    // rv.addChild(new CircleShape(C.BLUE, 5, '')); // center dot
-    return rv;
   }
 
   /** add coin(value) at (cx, cy) */
   setCoin(value: number | string, rad = this.cm.coinSize, cx = 0, cy = 0,
     args?: { color?: string, coinColor?: string, fontn?: string, r180?: boolean, oval?: number }) {
-    return this.addChild(this.makeCoin(value, rad, cx, cy, args));
+    return this.addChild(this.cm.makeCoin(value, rad, cx, cy, args));
   }
 
   cText: Text;
@@ -443,7 +419,7 @@ export class CI extends Container {
     const cText = this.cText = this.setTextTweaks(aText, tsize, tfont, { dy });
     const lineh = cText.lineHeight;
     // this.setLine(cText.y + lineh * (0 - .5), 'YELLOW', undefined, 1);
-    this.cText_ymax = cText.y + lineh * (text.split('\n').length - .75);
+    this.cText_ymax = cText.y + lineh * (text.split('\n').length - .6); // Tweaked for lead
     return;
   }
 
@@ -578,9 +554,11 @@ export class CI extends Container {
       const [name, x, y, w, h] = eximage ?? [];
       const cw = this.cardw, iw = ximage.width, mar = this.cm.edge;
       const ch = this.cardh, ih = ximage.height;
-      const cl = mar - cw / 2, cr = cw / 2 - mar;
-      const ct = (this.top - ch / 2);
-      const cb = ch / 2 - this.by
+      const cl = mar - cw / 2, cr = cw / 2 - mar; // left, right
+      const ct = (this.top - ch / 2);             // top
+      const cb = ch / 2 - this.by                 // bottom
+      const y0 = this.cText_ymax || ct;
+      const y1 = this.textLow_min ?? ch / 2 - this.by;
       const normalx = (x) => x === 'left' ? cl : x === 'right' ? cr : x === 'center' ? 0 : x;
       const normaly = (y) => y === 'top' ? ct : y === 'bot' ? cb : y === 'center' ? 0 : y;
       // Assert: this.ximage is loaded.
@@ -592,25 +570,30 @@ export class CI extends Container {
       if (scalex < 0) scalex = scaley = -scalex; // use negative to lock scales
       if (scaley < 0) scalex = scaley = -scaley;
       let bmx = (typeof x === 'number') ? x : center(cl, cr, iw * scalex);
-      let bmy = ((typeof y === 'number') ? y - ch / 2 : center(ct, cb, ih * scaley));
+      let bmy = ((typeof y === 'number') ? y - ch / 2 : center(y0, y1, ih * scaley));
 
       if (x === 'card') {
-        bmx = - cw / 2;
+        bmx = - cw / 2;          // for back image
         bmy = - ch / 2;
       }
       // 'fit' to white region: x-margin, y-top/bottom
       if (x === 'fit') {
         bmx = cl;
-        scalex = (cr - cl) / iw;
+        scalex = (cr - cl) / iw; // stretch rigth to fill horizontal
       }
       if (y === 'fit') {
-        bmy = ct;    // TODO: shrink to fit with text & textLow
-        scaley = (cb - ct) / ih;
+        bmy = y0;
+        scaley = (y1 - y0) / ih;
       } else if (y === 'top') {
         bmy = ct;
       }
       if (h === 'xs') {
         scaley = scalex;
+        bmy = center(y0, y1, ih * scaley);
+      }
+      if (w === 'ys') {
+        scalex = scaley;
+        bmx = center(cl, cr, iw * scalex);
       }
       bm.x = bmx;
       bm.y = bmy;
@@ -861,6 +844,7 @@ class CI_Back extends CI {
   override setCost(cost: string | number): DisplayObject { return undefined; }
 }
 class CI_Token extends CI {
+  override get by() { return this.cardh; }
 
   override setWidthHeight(cardInfo?: CardInfo, cm?: CardMaker): void {
     this.cardw = this.cardh = cm.circle_image_size;
@@ -894,27 +878,34 @@ class CI_Token extends CI {
 
 /** holds all the context; use a factory to make a Card (or CardImage?) based on supplied CardInfo */
 export class CardMaker {
-  constructor(public gridSpec: GridSpec = ImageGrid.cardSingle_1_75, public scale = 1) {
+  constructor(
+    public gridSpec: GridSpec = ImageGrid.cardSingle_1_75,
+    public scale = 1,
+    public readonly withBleed = false
+  ) {
     const mBleed = 2 * (this.withBleed ? 0 : gridSpec.bleed);
-    this.cardw = gridSpec.cardw - mBleed; // 800, includes bleed
-    this.cardh = gridSpec.cardh - mBleed;
+    this.cardw = gridSpec.cardw - mBleed; // 750 or 800 withBleed; NOTE: portrait will switch cardw & cardh for CI
+    this.cardh = gridSpec.cardh - mBleed; // 525 or 575 withBleed;
     this.radi = (gridSpec.radi ?? this.radi) + (this.withBleed ? gridSpec.bleed : 0);     // corner radius
   }
+
+  get safe() { return this.gridSpec.safe; }
+  get bleed() { return this.withBleed ? this.gridSpec.bleed : 0; }
+  get edge() { return this.safe + this.bleed };
+
+  // GridSpec.dpi can do card-scale...? just use: Container.scale for in-app sizing.
+  readonly cardw: number = 750; // 800 with bleed
+  readonly cardh: number = 525; // 575 with bleed
+  readonly radi: number = 37;   // (1/8 inch) this.gridspec.radi +? bleed
+  readonly tband: number = 115 * this.cardw / 750 + this.bleed;
+  readonly bband: number = 130 * this.cardw / 750 + this.bleed;
 
   nbsp = `${'\u00A0'}`;    // unicode NBSP
   transitColor = 'rgb(180,180,180)';    // very light grey
   comTransitColor = 'rgb(180,120,80)';  // Brown/Grey
 
-  circle_image_size = 125;
-  square_image_size = 115;
-
-  readonly withBleed = false;
-  get safe() { return this.gridSpec.safe; }
-  get bleed() { return this.withBleed ? this.bleed : 0; }
-  get edge() { return this.safe + this.bleed };
-  get topBand() { return 115 + this.bleed; }
-  get bottomBand() { return 130 + this.bleed; }
-  radi = 37;   // (1/8 inch) this.gridspec.radi +? bleed
+  circle_image_size = 125; // for house & debt tokens
+  square_image_size = 115; // when we made printable maker tokens
 
   sfFont = 'SF Compact Rounded';
   nunito = 'Nunito';                      // Nunito is variable weight, but less compact
@@ -936,16 +927,11 @@ export class CardMaker {
   vpSize = 70;
   dirSize = 400; // font size! (and then shrink-to-fit)
 
-  // GridSpec.dpi can do card-scale...? just use: Container.scale for in-app sizing.
-  cardw = 750; // 800 with bleed
-  cardh = 525; // 575 with bleed
-
   fileDir = 'citymap';
-  ci: CI;
 
   makeCard(info: CardInfo) {
     const type: CardType = info.type;
-    switch (info.type) {
+    switch (type) {
       case 'Residential': {
         if (info.name.startsWith('Home'))
           return new CI_Home(this, info);
@@ -995,5 +981,44 @@ export class CardMaker {
       default:
         return new CI(this,info);
     }
+  }
+
+  fontSizeForCoin(rad = this.coinSize) { return 2 * rad * .82; }
+  /** fontSize is 2 * rad * .82;
+   * @param value shown as text on coin
+   * @param rad size of coin disk
+   * @param cx place coin on parent
+   * @param cy place coin on parent
+   * @param args extra params
+   * - color: textColor [black]
+   * - coinColor: fillc [C.coinGold]
+   * - fontn: coinFont
+   * - r180: falsle
+   * - oval: eccentricity (x/y) [1.0]
+   */
+  makeCoin(value: number | string, rad = this.coinSize, cx = 0, cy = 0,
+    args?: { color?: string, coinColor?: string, fontn?: string, r180?: boolean, oval?: number }) {
+    value = `${value}`;          // stringify if numeric
+    const neg = value[0] === '-';
+    const abs = neg ? value.slice(1) : value;
+    const def = { color: C.BLACK, coinColor: C.coinGold, fontn: this.coinFont, r180: false, oval: 0 };
+    const { color, coinColor, fontn, r180, oval } = { ...def, ...args };
+    const rv = new NamedContainer(`Coin(${value})`, cx, cy);
+    const ry = (oval === 0) ? rad : rad;
+    const rx = (oval === 0) ? rad : rad * oval;
+    const coin = new EllipseShape(coinColor, rx, ry, '');
+    const fontsize = this.fontSizeForCoin(rad); // 110 -> 90; 45 -> 37
+    const fontspec = F.composeFontName(fontsize, fontn);
+    const text = new CenterText(value, fontspec, color); // @ (0,0)
+    // vertical offset to align digits (or '*') in circle;
+    const offy = this.coinFontAdj + ((value === '*') ? .13 : 0);
+    const offx = ((value === '4') ? -.03 : 0);
+    text.y = fontsize * offy;
+    text.x = fontsize * offx;
+    text.scaleX = this.coinFontX;  // narrow/compact the font
+    if (r180) text.rotation = 180;
+    rv.addChild(coin, text);
+    // rv.addChild(new CircleShape(C.BLUE, 5, '')); // center dot
+    return rv;
   }
 }

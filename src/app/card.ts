@@ -1,5 +1,5 @@
 import { permute, stime } from '@thegraid/common-lib';
-import { Bitmap, Container, DisplayObject, Text } from '@thegraid/easeljs-module';
+import { Bitmap, Container, DisplayObject, Shape, Text } from '@thegraid/easeljs-module';
 import type { DebtContainer } from './Debt';
 import { C, F, S, WH } from './basic-intfs';
 import { CardContainer } from './card-container';
@@ -154,11 +154,13 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   static cardClassName: string = undefined
 
   static cardMaker: CardMaker;
+  static scale = .5;
 
   /** specifically "Card", not a subclass like Flag, HouseToken or Debt */
   isClassCard(): this is Card { return this.constructor.name === Card.cardClassName; } // === 'Card'
   // CanvasImageSource | String | Object
 
+  ci: CI;
   /** set this.bitmap so it displays the correct image of this Card.
    *
    * originally load a saved image; now: CI is a container of Shapes & Text.
@@ -174,7 +176,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     // @see Bitmap.js in createjs.js
     // this.bitmap = (info instanceof Card) ? new Bitmap(info.bitmap.image) : new Bitmap(Card.assetPath + info.path);
     if (!Card.cardMaker) Card.cardMaker = new CardMaker(undefined, scale);
-    const ci: CI = Card.cardMaker.makeCard(info);
+    const ci: CI = this.ci = Card.cardMaker.makeCard(info);
     const { x, y, width, height } = ci.getBounds();
     this.width = width * scale; this.height = height * scale;
     const image = this.image = new Image(this.width, this.height); // fake image to carry(w,h)
@@ -204,7 +206,12 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     }
   }
 
-  /**  createjs.Bitmap(imageOrUrl: string | Object
+  /**
+   * Container with a CI (containing lots for Shapes & Text & ximage from CardInfo)
+   *
+   * OR the old-style with a composite Bitmap built by GIMP, referenced by info.path.
+   *
+   * createjs.Bitmap(imageOrUrl: string | Object
    * | HTMLImageElement | HTMLCanvasElement
    * | HTMLVideoElement): createjs.Bitmap
    * @param info a CardInfo or existing Card
@@ -217,8 +224,9 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     if (info instanceof Card) info = this.info = info.info; // use the *original* info.
     // Assert: a Card is created before any Debt, Flag, or HouseToken; TODO better detect super() calls
     if (!Card.cardClassName) Card.cardClassName = this.constructor.name;  // "Card" or random optimized
-    const scale = .5;
-    this.setBaseImage(info, scale);
+    const scale = Card.scale;
+    this.scaleX = this.scaleY = scale;
+    this.setBaseImage(info, 1.0); // make image at scale=1, entire Card will be reduced...
     let { nreps, type, name, color, cost, step, stop, rent, vp, path, ext, subtype, text, props = {}, image, imagePromise } = info;
     if (subtype == "Test") {
       let testName = new Text(name, F.fontSpec(32), C.vpWhite)
@@ -565,13 +573,25 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     bonusTiles.forEach(c => (nsubt >= TP.bonusNcards) ? c.makeBonusMark() : c.removeBonusMark())
     return bonus
   }
-  makeCounter(name: string, initVal: number | string = "0", offx = 0, offy = 0, color: string = "lightgrey", fontSize: number = 38): ValueCounter {
+
+  /** overlay a ValueCounter on card, to show the current rent, stop, VP
+   *
+   * rentCounter, stopCounter, vpCounter, stepRange, bonusMark, [effect]Counter; put on card.
+   *
+   * See also: CI.setPriceBar()
+   *
+   * @param name identify the Counter for debut
+   * @param cx offset from center of card to center of counter
+   * @param cy offset from center of card to center of counter
+   * @param color color for the ellipse showing the count
+   */
+  makeCounter(name: string, initVal: number | string = "0", cx = 0, cy = 0, color: string = "lightgrey", fontSize: number = 37): ValueCounter {
     let card = this, fontName = Card.cardMaker.textFont;
-    let counter = new ValueCounter(name, initVal, color, fontSize, fontName);
+    let counter = new CoinCounter(name, initVal, color, fontSize, fontName); // use CoinCounter to get font offsets, etc
     counter.name = name;
     card.addChild(counter);
-    counter.x = offx;
-    counter.y = offy;
+    counter.x = cx;
+    counter.y = cy;
     if (!card.counters) card.counters = []; // Array<ValueCounter>
     if (name.endsWith("TokenCounter")) // Temp Policy & High-Tech
       card.counters.push(counter);     // enumerate them so we can delete when discard
@@ -588,55 +608,75 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     }
     card.removeBonusMark()
   }
-  /** overlay a ValueCounter on card, to show the current rent, stop, VP
-   * @param name identify the Counter for debut
-   * @param offx offset from center of card
-   * @param offy offset from center of card
-   * @param color color for the ellipse showing the count
-   */
-  // makeCoinCounterForCard(card: Card, name: string, init?: number, offx?: number, offy?: number, color = ValueCounter.coinGold): ValueCounter {
-  //   return ValueCounter.makeCounterForCard(this, name, "4", color, offx, offy)
-  // }
+
   makeRentCounter(color: string = C.coinGold) {
-    let offx = this.width / 2 - 38; // indent from right: CARD-EDGE + 5
-    let offy = -this.height / 2 + 83; // down from top: CARD-TOP-BAND + 10
-    this.rentCounter = this.makeCounter("rentCounter", this.rent, offx, offy, color)
+    const cx = this.width / 2 - Card.cardMaker.edge - Card.cardMaker.coinSize;;
+    const cy = this.ci.ty + this.ci.priceBarSize / 2 - this.height / 2;
+    this.rentCounter = this.makeCounter("rentCounter", this.rent, cx, cy, color)
   }
   makeStopCounter(color: string = C.coinGold) {
-    let offx = 0; // center
-    let offy = -this.height / 2 + 83; // down from top: CARD-TOP-BAND + 10
-    this.stopCounter = this.makeCounter("stopCounter", this.stop, offx, offy, color)
+    const cx = 0; // center
+    const cy = this.ci.ty + this.ci.priceBarSize / 2 - this.height / 2;
+    this.stopCounter = this.makeCounter("stopCounter", this.stop, cx, cy, color)
   }
   makeVPCounter(color?: string) {
-    let offx = this.width / 2 - 33;  // indent from right: CARD-EDGE
-    let offy = this.height / 2 - 35; // up from bottom: - (CARD-TOP-BAND + 10)
-    this.vpCounter = this.makeCounter("vpCounter", this.vp as number, offx, offy, color)
+    const cx = this.width / 2 - Card.cardMaker.edge - Card.cardMaker.coinSize;
+    const cy = this.height / 2 - Card.cardMaker.edge - Card.cardMaker.coinSize;
+    this.vpCounter = this.makeCounter("vpCounter", this.vp as number, cx, cy, color)
   }
   /** mark Policy & Event with 'range' (== card.step) required to purchase (or use?) */
   makeStepRange(color: string = C.white) {
     if (!(this.isPolicy() || this.isEvent())) return
-    let offx = this.width / 2 - 33;  // indent left: CARD-EDGE
-    let offy = this.height / 2 - 30;  // up from botton: -(CARD-TOP-BAND + 5)
-    this['stepRange'] = this.makeCounter('stepRange', this.step, offx, offy, color) // not a "Counter"
+    const cx = this.width / 2 - Card.cardMaker.edge - Card.cardMaker.coinSize;;
+    const cy = this.ci.ty + this.ci.priceBarSize / 2 - this.height / 2;
+    this['stepRange'] = this.makeCounter('stepRange', this.step, -cx, cy, color) // not a "Counter"
   }
+
+  bonusMark: ValueCounter; // for Franchise Bonus
+  /** Franchise bonus */
   makeBonusMark(color: string = C.coinGold, text: string | number = '+' ) {
-    if (!!this['bonusMark']) return
-    let offx = this.width / 2 - 50;  // indent left: CARD-EDGE
-    let offy = this.height / 2 - 30;  // up from botton: -(CARD-TOP-BAND + 5)
-    this['bonusMark'] = this.makeCounter("bonusMark", text, offx, offy, color, 28) // not a "Counter"
+    if (!!this.bonusMark) return
+    const cx = this.width / 2 - 3 * Card.cardMaker.edge - Card.cardMaker.coinSize;
+    const cy = this.height / 2 - Card.cardMaker.edge - Card.cardMaker.coinSize;
+    this.bonusMark = this.makeCounter("bonusMark", text, cx, cy, color, 28) // not a "Counter"
   }
   removeBonusMark() {
-    let bm = this['bonusMark']
+    const bm = this.bonusMark;
     if (!!bm) {
       bm.parent.removeChild(bm)
-      this['bonusMark'] = undefined
+      this.bonusMark = undefined
     }
   }
+}
+
+/** used by Card.makeCounter; uses CardMaker makeCoin. */
+class CoinCounter extends ValueCounter {
+  constructor(name: string, initValue?: string | number, color?: string, fontSize?: number, fontName?: string, textColor?: string) {
+    super(name, initValue, color ?? C.coinGold, fontSize ?? Card.cardMaker.fontSizeForCoin(), fontName ?? Card.cardMaker.coinFont, textColor);
+    // default boxSize() for Ellipse: high = text.MeasuredLineHeight() * 1.2; wide = ~1.3 * text.MeasuredWidth()
+    // (fontSize = 45) --> high = 50--55; rad = 25--27;;  Coin(fs=37) --> rad = 23.17
+  }
+
+  protected override setBoxWithValue(value: string | number): void {
+    // coin to (0, 0) on ValueCounter, which will be set/attached to Card
+    // text offset/adjustments computed by makeCoin.
+    const coin = Card.cardMaker.makeCoin(value, undefined, 0, 0, ); // makeCoin will adjust offsets & scaleX
+    const [disk, text] = coin.children as [Shape, Text];
+    this.box = disk;
+    this.text.text = text.text
+    this.text.x = text.x;
+    this.text.y = text.y;
+    this.text.font = text.font;
+    // this.text.scaleX = text.scaleX; // for 'narrow' or 'compact' style
+    // this.text.rotation = text.rotation;   // coins may rotate, but the counters do not.
+    this.addChild(disk, this.text);
+  }
+
 }
 export class Flag extends Card {
   static offx = 5        // put upper-left of Flag in upper-left of [portrait|landscape] card/Slot
   static offy = 5
-  static scale = .1      // display ownerCard as tiny
+  static flagScale = .1      // display ownerCard as tiny
   static ownerFlagName(row:number, col:number):string { return "OWNER-FLAG" + row + ":" + col}
 
   /**
@@ -646,14 +686,11 @@ export class Flag extends Card {
    * @param scale? override scale/size of generated Flag
    */
   // card is either a full-size Owner card, OR a Flag!
-  constructor(ownerCard: Card, scale: number = Flag.scale) {
+  constructor(ownerCard: Card, scale: number = Flag.flagScale) {
     super(ownerCard, 1, ownerCard.table)  // all the CardInfo fields [OwnerFlag cards are pretty simple]
     this.mouseEnabled = false
-    this.scaleX = scale * ownerCard.height/ownerCard.width // scaleX = scale * 1.5 = .15
-    this.scaleY = scale
-    this.regX = this.regY = 0 // unlike regular Card which is (width/2, height/2)
-    this.x = (Flag.offx / scale - ownerCard.width) / 2;  // offset from the upper-left corner
-    this.y = (Flag.offy / scale - ownerCard.height) / 2;
+    this.scaleX = scale * this.height / this.width; // scaleX = scale * 1.5 = .15 [make it Square!]
+    this.scaleY = scale;
     return
   }
   /**
@@ -672,6 +709,9 @@ export class Flag extends Card {
       flag.scaleY = .6     // inner Flag is smaller
       flag.x = flag.y = 45 // offset farther
     }
+    const edge = Card.cardMaker.safe;
+    flag.x = -targetCard.width / 2 + edge + flag.scaleX * flag.width / 2; // upper-left corner
+    flag.y = -targetCard.height / 2 + edge + flag.scaleY * flag.height / 2;
     targetCard.ownerFlag = flag;                      // so removeFlag can find it
     targetCard.addChild(flag)
     targetCard.stage.update()

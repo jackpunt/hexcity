@@ -287,7 +287,7 @@ export class Table extends EventDispatcher {
     table.allPolicy.push(table.policySlots);
     let mar = table.margin;
     let mainMap = table.mainMap;
-    let dirWH = { width: table.dirCards[0].width, height: table.dirCards[0].height };
+    let dirWH = { width: table.dirCards[0].width * Card.scale, height: table.dirCards[0].height * Card.scale };
     let dirCards = table.makeCardCont(playersCont, table.dirCards, // stack the cards
       {
         name: "dirCards", x: 0, xl: 1, y: 0, shuffle: true, backClick: false,
@@ -1106,6 +1106,7 @@ export class Table extends EventDispatcher {
    * @param parent typically a ContainerAt on the ScalableContainer
    * @param info CardInfo[] or WH specifying Card size (Card.defMarginSize added to get slotSize)
    * @param opts fields for CardContainer
+   * - clazz extends CardContainer
    */
   makeCardCont<T extends CardContainer>(parent: ContainerAt, info: Card[] | WH, opts: MCCOpts = {}): T {
     // table format
@@ -1116,8 +1117,8 @@ export class Table extends EventDispatcher {
       markColor = undefined, margins = undefined, backCard = true, backClick = true, bg = true,
       bgclick = undefined, dropOnCard = undefined, drag = true } = opts;
     let ccopts: CCopts = {
-      slotsX: slotsX, slotsY: slotsY, size: size, color: color, name: name, markColor: markColor, margins: margins,
-      backCard: backCard, backClick: backClick, bg: bg, bgclick: bgclick, dropOnCard: dropOnCard, drag: drag
+      slotsX, slotsY, size, color, name, markColor, margins,
+      backCard, backClick, bg, bgclick, dropOnCard, drag,
     };
     let cardCont = new clazz(info, ccopts);
     //console.log(stime(this, ".makeCardCont: cardCont="), cardCont.name, cardCont)
