@@ -19,8 +19,10 @@ interface Claz extends Constructor<Tile> {
 
 export type CountClaz = [count: number, claz: Claz, ...args: any];
 export class TileExporter {
+  table: Table;
   allPlayers: Player[];
   constructor(table: Table) {
+    this.table = table;
     this.allPlayers = table.allPlayers;
   }
 
@@ -28,7 +30,13 @@ export class TileExporter {
 
   makeImagePages() {
     const u = undefined, p0 = this.allPlayers[0], p1 = this.allPlayers[1];
-
+    const cardDecks = this.table.gamePlay.gameSetup.cardDecks;
+    const tokenDecks = this.table.gamePlay.gameSetup.tokenDecks;
+    const countClazArgs = [
+      [],
+      [],
+      [],
+    ]
     const pageSpecs: PageSpec[] = [];
 
     return pageSpecs;

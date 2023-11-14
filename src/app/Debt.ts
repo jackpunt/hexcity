@@ -31,16 +31,14 @@ export class DebtForTable {
     // first find Debt tokens, and put into this.mainCont:
     let debtTokens = Debt.resetDebtCards(table, []), debtSize = Debt.WH();
     let { width, height } = debtSize, ds = Card.scale;
-    const counterOffset = { x: width * ds * .4, y: height * ds * .8 }
     let marx = mainMap.marginSize.width, mary = mainMap.marginSize.height
     let locXYD: XY = { x: mainMap.leftEdge(marx, 1.25) - width / 2, y: mainMap.topEdge(mary, -1.9) }; // upper-left
 
-    let mainCont: DebtContainer = table.makeCardCont(mainMap.parent as ContainerAt, debtTokens,
-      {
-        clazz: DebtContainer, name: S.MainDebt, x: locXYD.x, y: locXYD.y,
-        bg: false, dropOnCard: true, size: debtSize, backCard: false, markColor: DebtContainer.markColor,
-        counter: { color: "lightgreen", fontSize: 14, offset: counterOffset }
-      })
+    let mainCont: DebtContainer = table.makeCardCont(mainMap.parent as ContainerAt, debtTokens, {
+      clazz: DebtContainer, name: S.MainDebt, x: locXYD.x, y: locXYD.y,
+      bg: false, dropOnCard: true, size: debtSize, backCard: false, markColor: DebtContainer.markColor,
+      counter: Debt.counterSpec
+    });
     this.mainCont = mainCont
     mainCont.host = mainCont.parent
 
@@ -53,8 +51,8 @@ export class DebtForTable {
       let plyrDebt = plyr.plyrDebt = table.makeCardCont(playersCont, Debt.WH(), {
         clazz: DebtContainer, name: contName, x: locx, y: locy, xl: .5,
         bg: false, dropOnCard: true, size: debtSize, backCard: false, markColor: DebtContainer.markColor,
-        counter: { color: "lightgreen", fontSize: 14, offset: counterOffset }
-      }) as DebtContainer
+        counter: Debt.counterSpec
+      });
       playersCont.setChildIndex(plyrDebt, playersCont.numChildren - 2); // under the overCont, above plyrConts
       plyrDebt.owner = plyr
       plyrDebt.host = plyrDebt.parent
@@ -138,10 +136,11 @@ export class DebtContainer extends CardContainer {
     } else {
       // make new DebtContainer on card for player: (card.owner == curPlayer) ? S.BankDebt : S.VCDebt
       debtCont = card.table.makeCardCont((card as Container) as ContainerAt, Debt.WH(), {
-        clazz: DebtContainer, name: name, x: card.width, xl: 1.0, yt: .1,
+        clazz: DebtContainer, name: name, x: card.width / 2, xl: 1.5, y: -card.height / 2, yt: .6,
         bg: false, dropOnCard: true, size: Debt.WH(), markColor: DebtContainer.markColor,
-        counter: { color: "lightgreen", fontSize: 14, offset: { x: 2, y: undefined } as XY }
+        counter: Debt.counterSpec
       })
+      debtCont.scaleX /= Card.scale; debtCont.scaleY /= Card.scale;
       debtCont.host = debtCont.parent
       card.debtCont = debtCont
     }
@@ -530,6 +529,8 @@ export class Debt extends Card {
   private static debtCard: Debt = undefined;
   /** size of a Debt card. */
   static WH(): WH { return Debt.debtCard.getWH(); }
+  static get counterOffset() { return { x: Debt.WH().width * Card.scale * .3, y: Debt.WH().height * Card.scale * .3 } };
+  static get counterSpec() { return { color: "lightblue", fontSize: 14, offset: Debt.counterOffset } };
 
   constructor(card: Card) {
     super(card, 1, card.table)

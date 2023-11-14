@@ -1372,7 +1372,7 @@ export class Table extends EventDispatcher {
     let sizes: WH = { width: TP.houseSize, height: TP.houseSize };
     let margins: WH = { width: 15, height: 2 };
     let offset: XY = { x: -20, y: undefined };
-    let counterOpts = { color: "lightgreen", fontSize: 10, offset: offset };
+    let counterOpts = { color: "lightblue", fontSize: 12, offset: offset };
     let housesCont = table.makeCardCont<HouseMktCont>(contAt, sizes, { clazz: HouseMktCont,
       name: "houseMkt", slotsY: names.length, margins: margins, backCard: false, x: x, y: y, dropOnCard: true,
       counter: counterOpts

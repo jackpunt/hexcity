@@ -16,6 +16,7 @@ import { TP } from './table-params';
 import { Tile } from './tile';
 import { Notifyable } from './types';
 import { ValueCounter } from "./value-counter";
+import { CardInfo } from './card-maker';
 
 /** all the vitals to reset Player to pre-move status (CardRec + resource slots) */
 export type PlayerState = {
@@ -161,7 +162,7 @@ export class Player extends EventDispatcher {
     this.name = this.Aname = "player"+ndx+"-"+this.color;
     this.rgbColor = color;              // until homeCards is loaded with real rgbColor
     this.mainMap = table.mainMap
-    this.ownerCard = this.ownerCard || table.homeCards.findCard("Owner-"+color+"-0", true)
+    this.ownerCard = this.makeOwnerCard();
   }
 
   /** dispatch a ValueEvent to this EventDispatcher. */
@@ -206,6 +207,14 @@ export class Player extends EventDispatcher {
     this.moves = 0
 
     return this;
+  }
+
+  makeOwnerCard() {
+    // removed from HomeDeck.cards:
+    const COLOR = this.color;
+    const name = `Owner-${COLOR}-0`, color = this.rgbColor, path = `${name}.png`;
+    const ownerCardInfo = { nreps: 0, type: 'Owner', name, cost: 0, color, path } as CardInfo;
+    return new Card(ownerCardInfo, 0, this.table);
   }
 
   /** Place row of player containers on parent, aligned with directions */

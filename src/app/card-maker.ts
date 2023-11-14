@@ -929,7 +929,7 @@ export class CardMaker {
 
   fileDir = 'citymap';
 
-  makeCard(info: CardInfo) {
+  makeCardImage(info: CardInfo) {
     const type: CardType = info.type;
     switch (type) {
       case 'Residential': {

@@ -81,7 +81,7 @@ export class GameSetup {
     this.gamePlay = new GamePlay(this.table, this);
     this.table.gamePlay = this.gamePlay
     this.table.cmClient = new CmClient()    // pro-forma, temporary, disconnected CmClient
-    // TODO: restart CI.imageLoader.loadImages() with ()=>{}
+    // NOTE: CI.imageLoader.loadImages() is started with () => { console.log(); }
     CI.imageLoader.imageMapPromise?.then((imap) => {
       console.log(stime(this, `.constructor: images loaded`), imap.size);
     }, (imap) => {
