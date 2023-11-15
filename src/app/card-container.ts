@@ -62,9 +62,9 @@ export class CardContainer extends Container {
   get regName(): string { return this.name }
 
   static defMarkColor: string = "rgba(80,80,80,.3)";
-  private defMarginSize: WH = {width: 8, height: 8};
-  private defCardSize: WH = {width: 525, height: 750};
-  marginSize:WH = {} = this.defMarginSize
+  private defMarginSize: WH = { width: 16 * Card.scale, height: 16 * Card.scale };
+  private defCardSize: WH = { width: 525, height: 750 };
+  marginSize:WH = {...this.defMarginSize};
   slotSize: WH;
   cardSize: WH;
 
@@ -125,10 +125,13 @@ export class CardContainer extends Container {
     this["aname"] = this.name         // easier to find in Chrome console debugger
     this.slotsX = opts.slotsX || 1;
     this.slotsY = opts.slotsY || 1;
-    this.cardArray = this.makeRowColStacks(this.slotsY, this.slotsX)
-    this.marginSize = opts.margins || this.defMarginSize
+    this.cardArray = this.makeRowColStacks(this.slotsY, this.slotsX);
+    this.marginSize = opts.margins ?? this.defMarginSize;
     //console.log(stime(this, ".constructor0 this="), this.name, opts.size, source, opts)
     // get size (from WH or BackCard & populate stack)
+    if (source instanceof Stack) {
+      this.back = (source.find(c => c.type == "Back"))
+    }
     this.setSizeFromSource(source, opts.size) // uses this.marginSize:WH to get slotSize
     //console.log(stime(this, ".constructor1 this="), this.name, this)
 
@@ -454,7 +457,7 @@ export class CardContainer extends Container {
       source[0].image !== undefined) {
       // source has images (or will have); get slotSize from Back
       // console.log(stime(this, ".setSizeFromSource Stack="), source)
-      this.setSlotSizeFromBack(source, cardSize)
+      this.setSlotSizeFromCard(source, cardSize)
     }
     if (source instanceof Array) {
       // however the size was determined (cardSize or Back), stack the cards the CardContainer
@@ -465,12 +468,12 @@ export class CardContainer extends Container {
   /** Try find a "Back" Card and get size from that.
    * else use the bottom card or else use defSize
    */
-  private setSlotSizeFromBack(stack: Card[], defSize:WH= this.defCardSize) {
-    this.back = (stack.find(c => c.type == "Back"))
-    let wh: WH = this.back
-    if (!wh) {
+  private setSlotSizeFromCard(stack: Card[], defSize:WH= this.defCardSize) {
+    let wh: WH = this.back;
+
+    if (!wh || true) {
       const card = stack[0];
-      wh = card ? { width: card.width * card.scaleX, height: card.height * card.scaleY } : defSize;
+      wh = card ? { width: card.width * Card.scale, height: card.height * Card.scale } : defSize;
     }
     //console.log(stime(this, ".setSlotSizeFromBack="), wh, "this.back=", this.back)
     this.backWidth = wh.width;
@@ -489,7 +492,7 @@ export class CardContainer extends Container {
     }
     this.slotSize = {
       width:  this.cardSize.width  + this.marginSize.width,
-      height: this.cardSize.height + this.marginSize.height
+      height: this.cardSize.height + this.marginSize.height,
     }
     //console.log(stime(this, ".setSlotSize:  this.slotSize="), this.slotSize)
   }
@@ -910,7 +913,7 @@ export class CardContainer extends Container {
     dstCont.dropFunc(card, undefined, ce.type) // S.dropped -> Buy/Build/Discard/Debt OR S.netDrop -> send_dand()
    }
 
-   /** Shrink and then spread the Cards over the area of this CardContainer */
+   /** on(moved,dropped,removed): Shrink and then spread the Cards over the area of this CardContainer */
   shrinkCards(ce: CardEvent, shrink = .9 * Card.scale) {
     if (!!ce.card) ce.card.scaleX = ce.card.scaleY = Card.scale; // reset the card being removed from this Container
     // offset cards in stack
@@ -1029,8 +1032,6 @@ export class CardContainer extends Container {
       // detect *first* drag event, emit S.dragStart
       //console.log(stime(this, ".addCard.dragFunc0: this="), this.name, parent.name, "lastCont:"+dragCtx.lastCont.name, "srcCont:"+dragCtx.srcCont.name, cont.name, card.name, row, col)
       if (dragCtx.first) {
-        card.x -= (dragCtx.dxy.x * card.scaleX - dragCtx.dxy.x); dragCtx.dxy.x *= card.scaleX; // TODO: fix dragger.ts
-        card.y -= (dragCtx.dxy.y * card.scaleY - dragCtx.dxy.y); dragCtx.dxy.y *= card.scaleY;
         cont.allowDropCacheFalse = cont.allowDropCacheTrue = undefined;
         // dragStart assumes Card is still where it was this addCard!
         card.setOrigSlot({ cont, row, col, stack: card.slotInfo.stack } as SlotInfo) // save origSlot (isDiscardActivated)

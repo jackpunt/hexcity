@@ -1,4 +1,4 @@
-import { C, F } from "@thegraid/common-lib";
+import { C, F, WH } from "@thegraid/common-lib";
 import { CenterText } from "@thegraid/easeljs-lib";
 import { AlphaMaskFilter, Bitmap, Container, DisplayObject, Graphics, Shape, Text } from "@thegraid/easeljs-module";
 import { EzPromise } from "@thegraid/ezpromise";
@@ -841,7 +841,10 @@ class CI_Dots extends CI_Square {
 
 class CI_Back extends CI {
   override setPriceBar(info: CardInfo2, color?: string): void {  }
+  // Note: Back.cost is holding the width, Back.step holds the height
+  // Hmm: now that CardMaker has access to GridSpec.width-height, coding into Back is obsolete?
   override setCost(cost: string | number): DisplayObject { return undefined; }
+  // QQQ: does setContent() set the image?
 }
 class CI_Token extends CI {
   override get by() { return this.cardh; }
@@ -899,6 +902,9 @@ export class CardMaker {
   readonly radi: number = 37;   // (1/8 inch) this.gridspec.radi +? bleed
   readonly tband: number = 115 * this.cardw / 750 + this.bleed;
   readonly bband: number = 130 * this.cardw / 750 + this.bleed;
+  cardSize(portrait = true): WH {
+    return { width: portrait ? this.cardh : this.cardw, height: portrait ? this.cardw : this.cardh }
+  }
 
   nbsp = `${'\u00A0'}`;    // unicode NBSP
   transitColor = 'rgb(180,180,180)';    // very light grey
@@ -1012,7 +1018,7 @@ export class CardMaker {
     const text = new CenterText(value, fontspec, color); // @ (0,0)
     // vertical offset to align digits (or '*') in circle;
     const offy = this.coinFontAdj + ((value === '*') ? .13 : 0);
-    const offx = ((value === '4') ? -.03 : 0);
+    const offx = ((value === '4') ? -.04 : 0);
     text.y = fontsize * offy;
     text.x = fontsize * offx;
     text.scaleX = this.coinFontX;  // narrow/compact the font

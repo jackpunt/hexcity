@@ -29,7 +29,7 @@ export class DebtForTable {
     this.vcPlayer = new VCPlayer(table, C.BLACK, null, null) // BLACK identifies VCPlayer (without type VCPlayer)
 
     // first find Debt tokens, and put into this.mainCont:
-    let debtTokens = Debt.resetDebtCards(table, []), debtSize = Debt.WH();
+    let debtTokens = Debt.resetDebtCards(table, []), debtSize = Debt.WH;
     let { width, height } = debtSize, ds = Card.scale;
     let marx = mainMap.marginSize.width, mary = mainMap.marginSize.height
     let locXYD: XY = { x: mainMap.leftEdge(marx, 1.25) - width / 2, y: mainMap.topEdge(mary, -1.9) }; // upper-left
@@ -48,7 +48,7 @@ export class DebtForTable {
       let playersCont = plyr.plyrCnts.parent as ContainerAt
       let locx = plyr.plyrDist.leftEdge(0, -.5), locy = plyr.plyrDist.bottomEdge(0, -.25) - height / 2
 
-      let plyrDebt = plyr.plyrDebt = table.makeCardCont(playersCont, Debt.WH(), {
+      let plyrDebt = plyr.plyrDebt = table.makeCardCont(playersCont, Debt.WH, {
         clazz: DebtContainer, name: contName, x: locx, y: locy, xl: .5,
         bg: false, dropOnCard: true, size: debtSize, backCard: false, markColor: DebtContainer.markColor,
         counter: Debt.counterSpec
@@ -135,9 +135,9 @@ export class DebtContainer extends CardContainer {
       }
     } else {
       // make new DebtContainer on card for player: (card.owner == curPlayer) ? S.BankDebt : S.VCDebt
-      debtCont = card.table.makeCardCont((card as Container) as ContainerAt, Debt.WH(), {
+      debtCont = card.table.makeCardCont((card as Container) as ContainerAt, Debt.WH, {
         clazz: DebtContainer, name: name, x: card.width / 2, xl: 1.5, y: -card.height / 2, yt: .6,
-        bg: false, dropOnCard: true, size: Debt.WH(), markColor: DebtContainer.markColor,
+        bg: false, dropOnCard: true, size: Debt.WH, markColor: DebtContainer.markColor,
         counter: Debt.counterSpec
       })
       debtCont.scaleX /= Card.scale; debtCont.scaleY /= Card.scale;
@@ -528,8 +528,8 @@ export class Debt extends Card {
   /** prototypical Debt card. */
   private static debtCard: Debt = undefined;
   /** size of a Debt card. */
-  static WH(): WH { return Debt.debtCard.getWH(); }
-  static get counterOffset() { return { x: Debt.WH().width * Card.scale * .3, y: Debt.WH().height * Card.scale * .3 } };
+  static get WH(): WH { return Debt.debtCard.WH; }
+  static get counterOffset() { return { x: Debt.WH.width * Card.scale * .3, y: Debt.WH.height * Card.scale * .3 } };
   static get counterSpec() { return { color: "lightblue", fontSize: 14, offset: Debt.counterOffset } };
 
   constructor(card: Card) {
@@ -587,7 +587,7 @@ export class Debt extends Card {
       this.table.mainMap.showTargetMark.call(this)
   }
   addTargetMark() {
-    this["slotSize"] = this.getWH()
+    this["slotSize"] = this.WH;
     this.table.gamePlay.makeBuyCostTargetMark(this as any as CardContainer)
   }
   showXfer(xfer: number, show = xfer > 0): boolean {

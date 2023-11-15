@@ -6,6 +6,7 @@ import { C, F, Obj, S, WH, XY } from './basic-intfs';
 import { Card, Flag, HasSlotInfo, SlotInfo, Stack } from './card';
 import { CCopts, CardContainer, ContainerAt } from './card-container';
 import { CardEvent, ValueEvent } from "./card-event";
+import { CardInfo } from './card-maker';
 import { ChooseDir, DirSpec } from './choose-dir';
 import { CmClient } from './cm-client';
 import type { GamePlay } from './game-play';
@@ -16,7 +17,6 @@ import { TP } from './table-params';
 import { Tile } from './tile';
 import { Notifyable } from './types';
 import { ValueCounter } from "./value-counter";
-import { CardInfo } from './card-maker';
 
 /** all the vitals to reset Player to pre-move status (CardRec + resource slots) */
 export type PlayerState = {
@@ -277,7 +277,7 @@ export class Player extends EventDispatcher {
     let coinCounter = this.coinCounter = new ValueCounter(this.name+"-coinCounter", 0, C.coinGold, 32) // super size font
     let offs = plyrCnts.slotCenter(0, 0)  // center of slot[row,col] + [offx, offy]
     coinCounter.attachToContainer(plyrCnts, offs, this, S.coins, (e: ValueEvent) => this.coins)
-    table.scaleCont.addUnscaled(coinCounter)
+    table.scaleCont.addUnscaled(coinCounter, 5.6 * Card.scale)
     playersCont.setChildIndex(plyrCnts, playersCont.numChildren - 2); // under the overCont, above plyrDist(0,0)
     let sellMove = (ev: MouseEvent) => {
       if (this.moves > 0) {
@@ -299,16 +299,16 @@ export class Player extends EventDispatcher {
       ce.cont.moveRipple(ce, (card:Card) => { this.dirDiscard.addCard(card) })
     }
     plyrDir.on(S.moved, moveRippleToDirDiscard, this) // (never a DropTarget)
-    let scale1 = (ce:CardEvent) => { ce.card.scaleX = ce.card.scaleY = Card.scale; }
+    let scale1 = (ce:CardEvent) => { ce.card.scaleX = ce.card.scaleY = Card.scale; } // undo shrinkCards
 
     plyrProjs.on(S.clicked, this.onPlyrProjClicked, this) // check for isDiscardActivated()
     plyrProjs.on(S.moved, plyrProjs.shrinkCards, plyrProjs)[S.Aname] = "shrink"
     plyrProjs.on(S.removed, plyrProjs.shrinkCards, plyrProjs)[S.Aname] = "shrink"
-    plyrProjs.on(S.dragStart, scale1, plyrProjs)[S.Aname] = "scale=1"
+    plyrProjs.on(S.dragStart, scale1, plyrProjs)[S.Aname] = "undoShrink";
 
     // In this case, the card has never been in play, so no effects can be activated:
     plyrPolis.on(S.moved, (ce: CardEvent) => ce.cont.moveRipple(ce, table.dragToDiscard, "disc"), table )[S.Aname] = "ripple-disc" // replace plyrPolis
-    plyrPolis.on(S.dragStart, scale1, plyrPolis)[S.Aname] = "scale=1"
+    plyrPolis.on(S.dragStart, scale1, plyrPolis)[S.Aname] = "undoShrink";
 
     plyrDist.on(S.clicked, this.onPlyrDistClicked, this)[S.Aname] = "plyrDistClicked"
     this.setHomeDropListener()
@@ -342,7 +342,7 @@ export class Player extends EventDispatcher {
       let offs = cont.slotXY(info.offset.y/2, info.offset.x/2)
       resCounter.attachToContainer(cont, offs, player, info.type);
       resCounter.setLabel(info.name, undefined, 10);
-      scaleCont.addUnscaled(resCounter);
+      scaleCont.addUnscaled(resCounter, 5.6 * Card.scale);
       resCounter.name = player.name+"-"+info.name+"-Counter"
       return resCounter
     }
@@ -384,26 +384,32 @@ export class Player extends EventDispatcher {
   }
   makeStatsCounters(statCont: CardContainer) {
     let counters = {}
-    let newStatsCounter = (disp:EventDispatcher, cont:Container, name:string, color:string, size:number, offset:XY) => {
-        let scaleCont = this.table.scaleCont;
-        let cname = this.name+"-stats:"+name+"-Counter"
-        let counter = new ValueCounter(cname, 0, color, size);
-        counter.attachToContainer(cont, offset, disp, "stats-"+name);
-        counter.setLabel(name, undefined, 12)
-        scaleCont.addUnscaled(counter);
-        counters[name] = counter
-        return counter;
+    const makeStatCounter = (name: string, offset: XY, color: string) => {
+      const scaleCont = this.table.scaleCont, disp = this, size = 20;
+      const cname = this.name + "-stats:" + name + "-Counter"
+      const counter = new ValueCounter(cname, 0, color, size);
+      const offs = { x: offset.x, y: offset.y * 2 * Card.scale };
+      counter.setLabel(name, undefined, 12);
+      counter.attachToContainer(statCont, offs, disp, "stats-" + name);
+      if (TP.scaleStatCounter) {
+        counter.scaleX = counter.scaleY = 5.6 * Card.scale; // full scaling, on ScaleCont
+      } else {
+        scaleCont.addUnscaled(counter, 5.6 * Card.scale);   // limited scaling
+      }
+      counters[name] = counter
+      return counter;
+
     }
     let c0 = (x,y):XY => { let xy = statCont.slotXY(-.5, -.5); xy.x+=x; xy.y+=y; return xy }
     let c1 = (x,y):XY => { let xy = statCont.slotXY(-.5, +.5); xy.x+=x; xy.y+=y; return xy }
     console.log(stime(this, ".makeStatsCounter:"), {slotsXY0: statCont.slotXY(0,0), slotXY1: statCont.slotXY(0,1), slotC: statCont.slotCenter(0,0)})
-    newStatsCounter(this, statCont, "assets", this.rgbColor, 20, c0(0, 50))   // "stats-assets"
-    newStatsCounter(this, statCont, "debt", C.debtRust, 20, c0(0, 140))   // "stats-debt"
-    newStatsCounter(this, statCont, "range", C.white, 20, c0(0, 340))   // "stats-range"
-    newStatsCounter(this, statCont, "own", this.rgbColor, 20, c1(0, 50))// "stats-own"
-    newStatsCounter(this, statCont, "AV", C.coinGold, 20, c1(0, 140))  // "stats-AV"
-    newStatsCounter(this, statCont, "EV", C.coinGold, 20, c1(0, 250))  // "stats-EV"
-    newStatsCounter(this, statCont, "VP", C.vpWhite, 20, c1(0, 340))   // "stats-VP"
+    makeStatCounter("assets", c0(0,  40), this.rgbColor)  // "stats-assets"
+    makeStatCounter("debt",   c0(0, 140), C.debtRust)     // "stats-debt"
+    makeStatCounter("range",  c0(0, 340), C.white)        // "stats-range"
+    makeStatCounter("own",    c1(0,  40), this.rgbColor)  // "stats-own"
+    makeStatCounter("AV",     c1(0, 140), C.coinGold)     // "stats-AV"
+    makeStatCounter("EV",     c1(0, 240), C.coinGold)     // "stats-EV"
+    makeStatCounter("VP",     c1(0, 340), C.vpWhite)      // "stats-VP"
 
     let plyr = this, range = (counters["range"] as ValueCounter), ev= (counters["EV"] as ValueCounter)
     range.mouseEnabled = ev.mouseEnabled = true
@@ -438,12 +444,13 @@ export class Player extends EventDispatcher {
 
   /** distArranger stuff */
   setupPlyrDistDeck(plyrDist: CardContainer, mar: number, cardSize: WH) {
-    let table = this.table, playersCont: ContainerAt = plyrDist.parent as ContainerAt
+    const table = this.table, playersCont = plyrDist.parent as ContainerAt
+    const mainMap = table.mainMap, x0 = mainMap.leftEdge(-mar, 0);
 
     let distArranger = this.distArranger = table.makeCardCont(playersCont, cardSize,
       {
         clazz: DistArranger,
-        name: this.name + "-distArrange", x: plyrDist.rightEdge(mar, 1), y: plyrDist.y, slotsX: 7, counter: false });
+        name: this.name + "-distArrange", x: x0, y: plyrDist.y, slotsX: 7, counter: false });
     distArranger.useDropCache = false;
     distArranger.player = this
 
@@ -1119,6 +1126,7 @@ class PlayerMarker extends Container implements HasSlotInfo {
   dirTris: Shape[];
   constructor(player: Player) {
     super()
+    this.scaleX = this.scaleY = 2 * Card.scale;
     this.name = "Player"+player.index+"Marker"
     let dirMark = this.dirMark = new Shape()
     let short=20, long=-90, c=10 // pointing "N", short is half the southern baseline.
@@ -1185,7 +1193,7 @@ class PlayerMarker extends Container implements HasSlotInfo {
   moveMarkerToCard(card: Card) {
     let { cont, row, col } = card.getSlotInfo()
     let poff = this.playerMarkerOffset(this.player.index)
-    cont.moveAndSetSlotInfo(this, row, col, poff.x, poff.y) // PlayerMarker
+    cont.moveAndSetSlotInfo(this, row, col, poff.x * this.scaleX, poff.y * this.scaleY) // PlayerMarker
     cont.overCont.addChild(this) // reparent from cont to cont.overCont (above others & on top)
     this.setMarkerDirection(this.player.direction) // show .moveDir || .direction ?
     this.stage.update()

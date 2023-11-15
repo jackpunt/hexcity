@@ -15,6 +15,7 @@ import type { GamePlay } from './game-play';
 import { Hex2, HexMap } from './hex';
 import { MainMap } from './main-map';
 import { Player } from './player';
+import { RectShape } from './shapes';
 import { TP } from './table-params';
 import { TextLog } from './text-log';
 import { Tile } from './tile';
@@ -88,7 +89,8 @@ export class Table extends EventDispatcher {
   stage: Stage;
   gamePlay: GamePlay;
   dft: DebtForTable;    // the only linkage from Table -> Debt; injected by game-setup
-  // these field names are recorded in setThisCardsField
+
+  // these fields set via: GameSetup.loadCardsOfDeck(via GameSetup.fieldNameForDeck)
   homeCards: Stack;
   tokenCards: Stack;
   dotsCards: Stack;
@@ -119,6 +121,7 @@ export class Table extends EventDispatcher {
   allMkts: CardContainer[]; // mktConts+auctionTN (suitable for startBuy/stopBuy)
   /** HouseTokens in slots of this CardContainer */
   houseMkt: HouseMktCont;
+  marketContAt: ContainerAt;
   margin: number = 10;
   upscale: number = 1.5;
   mainMap: MainMap;
@@ -287,13 +290,13 @@ export class Table extends EventDispatcher {
     table.allPolicy.push(table.policySlots);
     let mar = table.margin;
     let mainMap = table.mainMap;
-    let dirWH = { width: table.dirCards[0].width * Card.scale, height: table.dirCards[0].height * Card.scale };
+    let portWH = table.portrait_cardSize;
     let dirCards = table.makeCardCont(playersCont, table.dirCards, // stack the cards
       {
         name: "dirCards", x: 0, xl: 1, y: 0, shuffle: true, backClick: false,
-        counter: { color: "lightblue", offset: { x: -dirWH.width / 2 + 20, y: dirWH.height / 2 + mar } }
+        counter: { color: "lightblue", offset: { x: -portWH.width / 2 + 20, y: portWH.height / 2 + mar } }
       });
-    let dirDiscard = table.makeCardCont(playersCont, dirCards.cardSize, { name: "dirDiscard", x: dirCards.leftEdge(), y: dirCards.bottomEdge(mar) });
+    let dirDiscard = table.makeCardCont(playersCont, portWH, { name: "dirDiscard", x: dirCards.leftEdge(), y: dirCards.bottomEdge(mar) });
     function makeAndInitPlayer(color: string, ndx: number): Player {
       let player = new Player(table, color, dirCards, dirDiscard);
       return player.initializePlayer(playersCont, ndx);
@@ -545,7 +548,7 @@ export class Table extends EventDispatcher {
   }
 
   makeTurnButton(): TurnButton {
-    let turnButton = new TurnButton(50)
+    let turnButton = new TurnButton(100 * Card.scale)
     CC.dragger.notDragable(turnButton)
     turnButton.name = "turnButton"
 
@@ -597,28 +600,34 @@ export class Table extends EventDispatcher {
     this.startPlayerNdx = -1; // Player chosen to start
   }
 
+  landscape_cardSize: WH;
+  portrait_cardSize: WH;
+  portrait_slotSize: WH;
+  landscape_slotSize: WH;
+
   /** Layout all the CardContainers */
   layoutTable() {
     this.initialize()
     let table = this, gplay = table.gamePlay
     let mar = this.margin
     let scaleC = this.scaleCont
+    const { width, height } = Card.cardMaker.cardSize(true); // portrait
+    let landscape: WH = this.landscape_cardSize = { width: height * Card.scale, height: width * Card.scale }
+    let portrait: WH = this.portrait_cardSize = { height: height * Card.scale, width: width * Card.scale }
+    let square: WH = { width: landscape.width, height: landscape.width };
     /** CC.localToLocal(x,y,scaleC) */
     let basePt = (cc: Container, x: number, y: number): Point => cc.localToLocal(x, y, scaleC);
     // tileCont/tileDeck to right of (0,0); policyCont/policyDeck to left of (0,0)
     let tileCont = this.makeContainerAt("tileCont", scaleC, new Point(0, 0));
-    let tileDeck = table.tileDeck = this.makeCardCont(tileCont, table.tileCards, { name: "tileDeck", x: 0, y: 0 });
+    let tileDeck = table.tileDeck = this.makeCardCont(tileCont, this.tileCards, { name: "tileDeck", x: 0, y: 0, size: portrait });
     let policyCont = this.makeContainerAt("policyCont", scaleC, new Point(0, 0));
-    let policyDeck = table.policyDeck = this.makeCardCont(policyCont, this.policyCards, { name: "policyDeck", x: -mar, y: 0, xl: 1 });
+    let policyDeck = table.policyDeck = this.makeCardCont(policyCont, this.policyCards, { name: "policyDeck", x: -mar, y: 0, xl: 1, size: landscape });
     // this.showStack(this.policyCards, "policyCards", policyDeck)
     // Using tileDeck & policyDeck to get card WH in portrait & landscape orientation:
-    let landscape: WH = policyDeck.cardSize;
-    let portrait: WH = tileDeck.cardSize;
-    let square: WH = { width: landscape.width, height: landscape.width };
-    let landscape_slot: WH = {} = policyDeck.slotSize;
-    let portrait_slot: WH = {} = tileDeck.slotSize;
+    let landscape_slot: WH = this.landscape_slotSize = {...policyDeck.slotSize};
+    let portrait_slot: WH = this.portrait_slotSize = {...tileDeck.slotSize};
     // policySlots below policyDeck:
-    let policySlots = this.policySlots = this.makeCardCont(policyCont, policyDeck.cardSize,
+    let policySlots = this.policySlots = this.makeCardCont(policyCont, landscape,
       { name: "policySlots", x: policyDeck.leftEdge(), y: policyDeck.bottomEdge(mar), slotsY: 2,
       color: C.policySlots, counter: false, dropOnCard: true });
     // auctionCont to right of tileDeck:
@@ -645,7 +654,7 @@ export class Table extends EventDispatcher {
     let colCosts: number[] = [3, 2, 1, 0, -1, -1, -2].slice(7 - TP.auctionSlots); // 7=baseArray.length
     this.attachAuctionPrices(colCosts, { color: C.coinGold, fontSize: 16 });
     let mainCont = this.makeContainerAt("mainCont", scaleC, basePt(tileDeck, tileDeck.leftEdge(), tileDeck.bottomEdge(mar, .25)));
-    let mainMap = table.mainMap = this.makeCardCont(mainCont, tileDeck.cardSize, { clazz: MainMap, name: "mainMap", x: 0, y: 0, slotsX: TP.mapCols, slotsY: TP.mapRows, counter: false, dropOnCard: false });
+    let mainMap = table.mainMap = this.makeCardCont(mainCont, portrait, { clazz: MainMap, name: "mainMap", x: 0, y: 0, slotsX: TP.mapCols, slotsY: TP.mapRows, counter: false, dropOnCard: false });
     mainMap.table = this
     let scpt = basePt(tileDeck, tileDeck.leftEdge() + tileDeck.slotSize.width / 2, (tileDeck.bottomEdge() + tileDeck.bottomEdge(mar, .25)) / 2);
     this.makeScaleCounter(scaleC, scpt.x, scpt.y);
@@ -657,6 +666,7 @@ export class Table extends EventDispatcher {
     let marketCont = this.makeContainerAt("marketCont", scaleC, basePt(policyDeck, mx, my));
     this.makeMarkets(marketCont, tileDeck, portrait);
     scaleC.setChildIndex(auctionCont, scaleC.numChildren -1) // above mainCont & marketCont
+    this.marketContAt =  marketCont;
 
     // allMkts includes houseMkt, includes auctionTN
     this.allMkts = this.mktConts.concat(this.auctionTN);
@@ -683,12 +693,25 @@ export class Table extends EventDispatcher {
 
     /// ************** All Containers made ******************* ////////
 
+    // compute bounds for TP.bgRect & addBackground()
+    const basePt2 = (cc, x, y) => basePt(cc.parent, x, y);
+    const polis = this.allPlayers[this.allPlayers.length-1].plyrPolis;
+    const plyrYmax = basePt2(polis, 0, polis.bottomEdge(0, .5)).y;
+    const mapYmax = basePt2(this.mainMap, 0, this.mainMap.bottomEdge(0, .5)).y;
+    const ymax = Math.max(plyrYmax, mapYmax);
+    const ymin = basePt2(this.tileDeck, 0, this.tileDeck.topEdge(0, .5)).y
+    const xmin = basePt2(polis, polis.leftEdge(0, .6), 0).x;
+    const xmax = basePt2(this.mainMap, this.mainMap.rightEdge(0, .6), 0).x;
+    TP.bgRect = {x: xmin, y: ymin, w: xmax - xmin, h: ymax - ymin};
+    this.addBackground(TP.bgColor);
+
     let locXY0: XY = { x: mainMap.leftEdge(mar, 1.2), y: mainMap.topEdge(mar, -2.48) };
     let locXY1: XY = { x: mainMap.leftEdge(mar, 1.2), y: mainMap.topEdge(mar, -2.75) };
-    let roundCounter = new ValueCounter("roundCounter", 0, "lightgreen");
+    let fsize = ValueCounter.defaultSize, lsize = 10;
+    let roundCounter = new ValueCounter("roundCounter", 0, "lightgreen", fsize);
     roundCounter.attachToContainer(this.mainMap.overCont, locXY0, this, S.turn, ((ve: ValueEvent) => table.roundNumber));
-    roundCounter.setLabel("round", undefined, 10);
-    table.scaleCont.addUnscaled(roundCounter);
+    roundCounter.setLabel("round", undefined, lsize);
+    table.scaleCont.addUnscaled(roundCounter, 5.6 * Card.scale);
 
     let turnCounter = new ValueCounter("turnCounter", 0, "lightgreen");
     turnCounter.attachToContainer(this.mainMap.overCont, locXY1, this, S.turn, ((ve: ValueEvent) => {
@@ -697,8 +720,8 @@ export class Table extends EventDispatcher {
       console.log(stime(this, ".turnCounter:"), { turn, player, coins, dir, moveDir }, pm.slotInfo, { db: Array.from(this.effects.dataRecs) });
       return ve.value;
     }));
-    turnCounter.setLabel(S.turn, undefined, 10);
-    table.scaleCont.addUnscaled(turnCounter);
+    turnCounter.setLabel(S.turn, undefined, lsize);
+    table.scaleCont.addUnscaled(turnCounter, 5.6 * Card.scale);
 
     /** force some cards to topOfStack */
     let editStack = (deck: CardContainer, toTop: string[]) => {
@@ -981,7 +1004,7 @@ export class Table extends EventDispatcher {
   }
   makeMarkets(marketCont: ContainerAt, tileDeck: CardContainer, cardSize: WH) {
     let makeMkt = (name: string, cards: Card[] | WH, x: number, y: number): CardContainer => {
-      return this.makeCardCont(marketCont, cards as Stack, { name: name, backCard: false, x: x, y: y, dropOnCard: true });
+      return this.makeCardCont(marketCont, cards as Stack, { name: name, backCard: false, x, y, dropOnCard: true });
     };
     let portrait = cardSize, mar = this.margin;
     let tileStack = tileDeck.getStack();
@@ -1286,64 +1309,94 @@ export class Table extends EventDispatcher {
   scaleParams = { initScale: .125, scale0: .1, scaleMax: 6, steps: 30, zscale: .20,  };
   /** makeScaleableBack and setup scaleParams */
   makeScaleCont(bindKeys: boolean): ScaleableContainer {
-    let scale = this.scaleParams.initScale = 0.324; // .125 if full-size cards
+    let scale = this.scaleParams.initScale = .125 / Card.scale; // .125 if full-size cards
     /** scaleCont: makeScalableBack ground */
-    let scaleC = this.scaleCont = this.makeScaleableBack(TP.bgColor);
+    let scaleC = this.scaleCont = new ScaleableContainer(this.stage, this.scaleParams);
+    if (!!scaleC.stage.canvas) {
+      CardContainer.dragger = new Dragger(scaleC);
+      // Special case of makeDragable; drag the parent of Dragger!
+      CC.dragger.makeDragable(scaleC, scaleC, undefined, undefined, true); // THE case for NOT useDragCont
+      this.scaleUp(CC.dragger.dragCont, 1.7); // Items being dragged appear larger!
+    }
     if (bindKeys) {
-      this.bindKeysToScale("z")
+      this.bindKeysToScale("z");
     }
     return scaleC
   }
-  bindKeysToScale(char = "z", cw: number = 262, ch: number = 374) {
+
+  /** exactly 1 mouse-scroll in */
+  ziim(dj: 2|1|0|-1|-2) {
+    const stage = this.stage;
+    const pxy = { x: stage.mouseX / stage.scaleX, y: stage.mouseY / stage.scaleY };
+    this.scaleCont.scaleContainer(dj, pxy);
+    this.stage?.update();
+  }
+  zoom(z = 1.1) {
+    const stage = this.stage;
+    const pxy = { x: stage.mouseX / stage.scaleX, y: stage.mouseY / stage.scaleY };
+    this.scaleCont.setScale(this.scaleCont.scaleX * z, pxy);
+    // would require adjusting x,y offsets, so we just scale directly:
+    // TODO: teach ScaleableContainer to check scaleC.x,y before scroll-zooming.
+
+    // this.scaleCont.scaleX = this.scaleCont.scaleY = this.scaleCont.scaleX * z;
+    this.stage?.update();
+  }
+  pan(xy: XY) {
+    this.scaleCont.x += xy.x;
+    this.scaleCont.y += xy.y;
+    this.stage?.update();
+  }
+
+  bindKeysToScale(char = "z", cw = 525 * Card.scale, ch = 750 * Card.scale) {
     const scaleC = this.scaleCont
     const m = this.margin
     const pg = this.paramGUI, pgb = pg && pg.getBounds()
-    // Offset based on layout to right side of mainMap:
+    // Offset based on layout to left side of mainMap:
     let minX = pgb ? (cw + 4*ch + 5*m + pgb.width) : (2*cw + 3*ch + 5*m) // ~width of playerCont
     let minY = m
     let ptZ = { x: -minX, y: -minY }
     let ptA = { x: 400-minX, y: -minY + (pg ? pg.y + 800 : 0) }
 
     // setup Keybindings to reset Scale:
-    const setScaleXY = (si: number = scaleC.initIndex, xy: XY = ptZ, sxy?: XY) => {
+    const setScaleXY = (ns = .26, xy: XY = ptZ, sxy: XY = { x: 0, y: 0 }) => {
       // scaleC.setScaleXY & update()
-      let ns = scaleC.setScaleXY(si, xy, sxy)
+      let fs = scaleC.setScale(ns, xy, sxy)
+      scaleC.x = sxy.x - xy.x * fs;
+      scaleC.y = sxy.y - xy.y * fs;
       this.stage.update()
     }
-    const resetScale0 = () => setScaleXY(); // 10
-    const resetScale1 = () => setScaleXY(7);
-    const resetScaleA = () => setScaleXY(14, ptA);
+    const resetScaleX = () => setScaleXY(.1 / Card.scale, TP.bgRect); // 10
+    const resetScaleZ = () => setScaleXY(.13 / Card.scale);
+    const resetScaleA = () => setScaleXY(.25 / Card.scale, ptA);
 
     // Scale-setting keystrokes:
-    KeyBinder.keyBinder.setKey("x", { thisArg: this, func: resetScale0 });
-    KeyBinder.keyBinder.setKey("z", { thisArg: this, func: resetScale1 });
+    KeyBinder.keyBinder.setKey("x", { thisArg: this, func: resetScaleX });
+    KeyBinder.keyBinder.setKey("z", { thisArg: this, func: resetScaleZ });
     KeyBinder.keyBinder.setKey("a", { thisArg: this, func: resetScaleA });
+    KeyBinder.keyBinder.setKey('S-ArrowUp', { thisArg: this, func: this.zoom, argVal: 1.03 })
+    KeyBinder.keyBinder.setKey('S-ArrowDown', { thisArg: this, func: this.zoom, argVal: 1/1.03 })
+    KeyBinder.keyBinder.setKey('S-ArrowLeft', { thisArg: this, func: this.pan, argVal: {x: -10, y:0} })
+    KeyBinder.keyBinder.setKey('ArrowRight', { thisArg: this, func: this.pan, argVal: {x: 10, y: 0} })
+    KeyBinder.keyBinder.setKey('ArrowLeft', { thisArg: this, func: this.pan, argVal: {x: -10, y:0} })
+    KeyBinder.keyBinder.setKey('S-ArrowRight', { thisArg: this, func: this.pan, argVal: {x: 10, y: 0} })
+    KeyBinder.keyBinder.setKey('ArrowUp', { thisArg: this, func: this.pan, argVal: { x: 0, y: -10 } })
+    KeyBinder.keyBinder.setKey('ArrowDown', { thisArg: this, func: this.pan, argVal: { x: 0, y: 10 } })
+
+    KeyBinder.keyBinder.setKey('S-ArrowUp', () => this.ziim(1) )
+    KeyBinder.keyBinder.setKey('S-ArrowDown', () => this.ziim(-1))
+
     KeyBinder.keyBinder.dispatchChar(char)
   }
   /**
-   * Put new background ScalableContainer at (x0,y0) on this.stage.
+   * Put new background on this.scaleCont
    *
-   * Add a child Container (8000x5000) so the SC has a dragable target.
+   * Add a RectShape(TP.bgRect, bgColor)  so the SC has a dragable target.
    *
    * @param bgColor
    */
-  makeScaleableBack(bgColor: string = TP.bgColor): ScaleableContainer {
-    let scaleC = new ScaleableContainer(this.stage, this.scaleParams);
-    if (!!scaleC.stage.canvas) {
-      CardContainer.dragger = new Dragger(scaleC)
-      // Special case of makeDragable; drag the parent of Dragger!
-      CC.dragger.makeDragable(scaleC, scaleC, undefined, undefined, true); // THE case for NOT useDragCont
-      this.scaleUp(CC.dragger.dragCont, 1.7); // Items being dragged appear larger!
-    }
-    if (!!bgColor) {
-      // specify an Area that is Dragable (mouse won't hit "empty" space)
-      let background = new Shape(), { x, y, w, h } = TP.bgRect
-      background.graphics.beginFill(bgColor).drawRect(x, y, w, h);
-      scaleC.addChildAt(background, 0);
-      //console.log(stime(this, ".makeScalableBack: background="), background);
-    }
-    //console.log(stime(this, ".makeScalableBack: backboard="), scaleC);
-    return scaleC;
+  addBackground(bgColor: string) {
+    const background = new RectShape(TP.bgRect, bgColor, '');
+    this.scaleCont.addChildAt(background, 0);
   }
   /** ValueCounter showing current scale of backboard. */
   makeScaleCounter(scaledCont: ScaleableContainer, x0: number, y0: number) {
@@ -1369,12 +1422,12 @@ export class Table extends EventDispatcher {
     let names: string[] = [];    // entry for each HouseToken.name: ["House", "Triplex", "Apt", "High", "Tower"]
     houses.forEach((c: Card) => names.includes(c.name) || names.push(c.name))
 
-    let sizes: WH = { width: TP.houseSize, height: TP.houseSize };
-    let margins: WH = { width: 15, height: 2 };
-    let offset: XY = { x: -20, y: undefined };
-    let counterOpts = { color: "lightblue", fontSize: 12, offset: offset };
+    const cs = Card.scale; // HousesCont to scale with Card.scale.
+    let sizes: WH = { width: TP.houseSize * cs, height: TP.houseSize * cs }, hs = houseCards[0].WH;
+    let margins: WH = { width: 30 * cs, height: 4 * cs };
+    let counterOpts = { color: "lightblue", fontSize: 12, offset: { x: -40 * cs, y: undefined } };
     let housesCont = table.makeCardCont<HouseMktCont>(contAt, sizes, { clazz: HouseMktCont,
-      name: "houseMkt", slotsY: names.length, margins: margins, backCard: false, x: x, y: y, dropOnCard: true,
+      name: "houseMkt", slotsY: names.length, margins, backCard: false, x, y, dropOnCard: true,
       counter: counterOpts
     });
     housesCont.names = names

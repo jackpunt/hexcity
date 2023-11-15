@@ -178,12 +178,11 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     if (!Card.cardMaker) Card.cardMaker = new CardMaker(undefined, scale);
     const ci: CI = this.ci = Card.cardMaker.makeCardImage(info);
     const { x, y, width, height } = ci.getBounds();
-    this.width = width * scale; this.height = height * scale;
+    this.width = width * scale; this.height = height * scale; // NOTE: scale is 1 !!!
+    // set this.image (with width & height) so setSlotSizeFromSource will work.
     const image = this.image = new Image(this.width, this.height); // fake image to carry(w,h)
-    const cacheImage = false; // cacheImage takes 3 times longer (to render from dataURL)
-    if (cacheImage) {
-      // set this.image (with width & height) so setSlotSizeFromSource will work.
-      // but then, setRegXY() will not do anything; so we do it here.
+    const useCacheDataURL = false; // cacheCanvas takes 3 times longer (to render from dataURL)
+    if (useCacheDataURL) {
       const parent = new Container();
       parent.scaleX = parent.scaleY = scale;
       parent.addChild(ci);
@@ -198,6 +197,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
       this.bitmap.x -= this.width / 2;
       this.bitmap.y -= this.height / 2;
     } else {
+      // NOTE: ci is a cached DisplayObject, it render without further computation:
       this.bitmap = ci;  // CI is already centered around (0, 0)! so drag will not be offset!
       const prom = new Promise<HTMLImageElement>((res, rej) => { res(image) }); // RESOLVED!
       this.imagePromise = info.imagePromise = prom;
@@ -224,8 +224,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     if (info instanceof Card) info = this.info = info.info; // use the *original* info.
     // Assert: a Card is created before any Debt, Flag, or HouseToken; TODO better detect super() calls
     if (!Card.cardClassName) Card.cardClassName = this.constructor.name;  // "Card" or random optimized
-    const scale = Card.scale;
-    this.scaleX = this.scaleY = scale;
+    this.scaleX = this.scaleY = Card.scale;
     this.setBaseImage(info, 1.0); // make image at scale=1, entire Card will be reduced...
     let { nreps, type, name, color, cost, step, stop, rent, vp, path, ext, subtype, text, props = {}, image, imagePromise } = info;
     if (subtype == "Test") {
@@ -265,6 +264,8 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     //console.log(stime(this, ".constuctor: "), name, this.nreps, this);
   }
 
+  _width: number;     // for "Back" card
+  _height: number;
   /** implicit creation of this.width: */
   set width(w: number) { this._width = w }
   get width(): number {
@@ -278,7 +279,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     else if (this.image) { return this.image.height }
     else return undefined
   }
-  getWH(): WH {
+  get WH(): WH {
     return { width: this.width, height: this.height }
   }
 
@@ -298,8 +299,6 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   subtype: SubType | null;
   text: string | null;
   props: object;
-  _width: number;     // for "Back" card
-  _height: number;
   bitmap: DisplayObject;
   image: HTMLImageElement; // or maybe createjs.Bitmap
   imagePromise: Promise<HTMLImageElement>;
@@ -454,23 +453,26 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     }
   }
 
+  /** all the 'acard' built from CardInfo2. */
+  static cardByName = new Map<string, Card>();
 
-  /** Return Array of each Card specified in CardInfo.
-   * All cardinfo is present, nreps=1 (multiple instances), no images.
+  /** Return Array of each Card specified in infoAry: CardInfo2.
+   * All cardinfo is present, nreps=1 (multiple instances), images are Promise'd.
    *
-   * @param info a CardInfo[], for example: HomeDeck.deck
+   * @param infoAry a CardInfo2[], for example: HomeDeck.deck
    * @param donefunc function(stack) called when all Images are loaded.
    * @param thisArg call donefunc with 'this'
    * @return a Stack of the Cards; stack.imagePromises: Array\<Promise\<HTMLImageElement>>
    */
-  static loadCards(info: CardInfo2[], table?: Table, donefunc?:((stack:Stack) => void), thisArg?: any): Stack {
+  static loadCards(infoAry: CardInfo2[], table?: Table, donefunc?:((stack:Stack) => void), thisArg?: any): Stack {
     const stack: Stack = new Stack()
     const promises: Promise<HTMLImageElement>[] = [];
     //console.log(stime(this, ".loadCards1: stack="), stack, promises)
     stack.imagePromises = promises;
 
-    info.forEach((obj: CardInfo, lineno: number) => {
-      const acard = new Card(obj); // build the Bitmap from file. [thanks webpack]
+    infoAry.forEach((info: CardInfo, lineno: number) => {
+      const acard = new Card(info); // build the Bitmap from image.png [thanks webpack] (or CI)
+      Card.cardByName.set(acard.name, acard);
       const nreps = acard.nreps;
       // likely has .imagePromise
       //console.log(stime(this, ".loadCards2"), acard.nreps, acard.name, acard)

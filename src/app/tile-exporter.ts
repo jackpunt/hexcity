@@ -1,5 +1,7 @@
 import { C, Constructor, stime } from "@thegraid/common-lib";
 import { Container, DisplayObject } from "@thegraid/easeljs-module";
+import { Card } from "./card";
+import { CI, CardInfo } from "./card-maker";
 import { H } from "./hex-intfs";
 import { ImageGrid, PageSpec } from "./image-grid";
 import { Player } from "./player";
@@ -13,7 +15,7 @@ interface Tile extends DisplayObject {
   setPlayerAndPaint(player?: Player): void;
 }
 
-interface Claz extends Constructor<Tile> {
+interface Claz extends Constructor<CI> {
   rotateBack: number | undefined;
 }
 
@@ -43,7 +45,11 @@ export class TileExporter {
   }
 
   /** compose bleed, background and Tile (Tile may be transparent, so white background over bleed) */
-  composeTile(claz: Constructor<Tile>, args: any[], player?: Player, edge: 'L' | 'R' | 'C' = 'C', addBleed = 28) {
+  composeTile(info: CardInfo, ... args: any[]) {
+    // compose Card Image (CI) with bleed
+    return Card.cardMaker.makeCardImage(info);
+  }
+  xcomposeTile(claz: Constructor<Tile>, args: any[], player?: Player, edge: 'L' | 'R' | 'C' = 'C', addBleed = 28) {
     const cont = new Container();
     if (claz) {
       const tile = new claz(...args), base = tile.baseShape as PaintableShape;
@@ -82,13 +88,13 @@ export class TileExporter {
         const addBleed = (true || n > 3 && n < 32) ? undefined : -10; // for DEBUG: no bleed to see template positioning
         if (!frontAry[pagen]) frontAry[pagen] = [];
         const col = n % ncol, edge = (col === 0) ? 'L' : (col === ncol - 1) ? 'R' : 'C';
-        const frontTile = this.composeTile(claz, args, frontPlayer, edge, addBleed);
+        const frontTile = this.composeTile(new claz(), args, frontPlayer, edge, addBleed);
         frontAry[pagen].push(frontTile);
         if (double) {
           const backAryPagen = backAry[pagen] ?? (backAry[pagen] = []) as (DisplayObject | undefined)[];
           let backTile = undefined;
           if (claz.rotateBack !== undefined) {
-            backTile = this.composeTile(claz, args, backPlayer, edge, addBleed);
+            backTile = this.composeTile(new claz(), args, backPlayer, edge, addBleed);
             const tile = backTile.getChildAt(2); // [bleed, back, tile]
             tile.rotation = claz.rotateBack;
           }

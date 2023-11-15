@@ -84,7 +84,7 @@ export class TP {
   static stableCardNames:{c1, c2, c3, c4, c5, c6} = {c1:'ATM', c2:'Bank', c3:'Brokerage', c4:'Construction', c5:'Warehouse', c6:'Heavy Equipment'}
   static bgColor: string = 'rgba(155, 100, 150, .3)';
   static bgRect = { x: -2400, y: -1000, w: 8000, h: 5000 }
-  static houseSize: number = 75;  // WH of 'House' Cards
+  static houseSize: number = 150;  // WH of 'House' Cards
   static rangeDivisor: number = 7; // suitable for 2 player: range = Worth/rangeDivisor
   static ghost: string = 'game7'   // game-setup.network()
   static gdomain: string = 'thegraid.com'
@@ -101,6 +101,7 @@ export class TP {
   static discardDeferred: boolean = false;  // enforce draw->discardDeferred
   static listUnseenDirCards: boolean = false; // show contents of dirCards
   static newParseEffects: boolean = false;   // alternative DR parser
+  static scaleStatCounter: boolean = false;  // false to addUnscaled (partial scale)
   static bonusAmt: number = 1;               // pay owner extra 'franchise' bonus
   static bonusNcards: number = 4;            // if owner has 4 or more of subtype on board
   static stdBonusAry: number[] = [0, 0, 0, 0, TP.bonusAmt] // actual onStep bonus

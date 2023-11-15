@@ -236,17 +236,24 @@ export class GameSetup {
     this.mainMap._gamePlay = this.gamePlay
     //console.log(stime(this), "GameSetup:", {table: this.table, mainMap: this.mainMap, gamePlay: this.gamePlay})
     this.mainMap.makeLegalMarks();
-    // put it someplace accessible [for now; until we make 'this' accessible]
     if (!!this.table.stage.canvas) {
-      let gui = this.makeParamGUI(this.table.scaleCont), map = this.table.mainMap.parent, scaleCont = this.table.scaleCont
+      const scaleCont = this.table.scaleCont = this.table.scaleCont;
+      const mktCont = this.table.marketContAt; // put ParamGUI to left of Markets
+      const scale = 2 * Card.scale, d = 5 * scale, cx = mktCont.x, cy = mktCont.y;
+      const guiC = new NamedContainer('ParamGUI', cx, cy);
+      guiC.scaleX = guiC.scaleY = scale;
+      scaleCont.addChild(guiC);
+      const gui = this.makeParamGUI(guiC, 0, 0), map = this.table.mainMap.parent;
+      guiC.x -= (gui.linew + d) * scale;
       this.paramGUI = this.table.paramGUI = gui
-      scaleCont.addChildAt(gui, scaleCont.getChildIndex(map))
-      const contCardGUI = new NamedContainer('CardGUI', -1500, 1300);
-      const bgr = new RectShape({x: -20, y: -20, w: 170, h: 400}, 'rgb(100,100,100,.5)', '');
-      contCardGUI.addChild(bgr);
-      scaleCont.addChild(contCardGUI)
-      const gui2 = this.makeCardGUI(contCardGUI, 0, 0);
-      CC.dragger.makeDragable(contCardGUI);
+      scaleCont.addChildAt(guiC, scaleCont.getChildIndex(map))
+      const gui2C = new NamedContainer('CardGUI', guiC.x, guiC.y + gui.ymax * scale + 2 * d);
+      gui2C.scaleX = gui2C.scaleY = scale;
+      scaleCont.addChild(gui2C); //
+      const gui2 = this.makeCardGUI(gui2C);
+      const bgr = new RectShape({ x: -d, y: -d, w: gui2.linew + 2 * d, h: gui2.ymax + 2 * d }, 'rgb(200,200,200,.5)', '');
+      gui2C.addChildAt(bgr, 0);
+      CC.dragger.makeDragable(gui2C);
       this.table.bindKeysToScale("z") // reset scaling params with table.paramGUI
     }
 
@@ -267,7 +274,7 @@ export class GameSetup {
   defStyle = { rootColor: "rgba(160,160,160,.5)", arrowColor: "grey", textAlign: 'right' }
 
   /** param x (3*cw+1*ch+6*m) + max(line.width) - (max(choser.width) + 20) */
-  makeParamGUI(parent: Container, x = -1500, y = 300): ParamGUI {
+  makeParamGUI(parent: Container, x = 0, y = 0): ParamGUI {
     let gui = new ParamGUI(TP, this.defStyle), CyC = CycleChoice
     gui.name = 'mainParamGUI';
     let roboChoice = [{ value: GUI, text: "GUI" }, { value: RoboOne, text: "RoboOne" }]

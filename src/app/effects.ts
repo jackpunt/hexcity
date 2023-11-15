@@ -632,7 +632,7 @@ export class ActionClause {
       let offx = (typeof(offx1) == "number") ? offx1 : defx
       let offy = (typeof(offy2) == "number") ? offy2 : defy
       let counter = card.makeCounter(counterName, 0, offx, offy, color, fsize)
-      if (typeof(label) == "string") counter.setLabel(label as string, undefined, 15) // no way to set offsets
+      if (typeof(label) == "string") counter.setLabel(label, undefined, 15) // no way to set offsets
       let fieldName = counterName.slice(0, -"Counter".length)
       let initValue = card[fieldName] as string | number
       counter.setValue(initValue)
