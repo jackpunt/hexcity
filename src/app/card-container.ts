@@ -913,7 +913,7 @@ export class CardContainer extends Container {
     dstCont.dropFunc(card, undefined, ce.type) // S.dropped -> Buy/Build/Discard/Debt OR S.netDrop -> send_dand()
    }
 
-   /** on(moved,dropped,removed): Shrink and then spread the Cards over the area of this CardContainer */
+  /** on(moved,dropped,removed): Shrink and then spread the Cards over the area of this CardContainer */
   shrinkCards(ce: CardEvent, shrink = .9 * Card.scale) {
     if (!!ce.card) ce.card.scaleX = ce.card.scaleY = Card.scale; // reset the card being removed from this Container
     // offset cards in stack

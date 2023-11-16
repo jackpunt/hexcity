@@ -35,7 +35,7 @@ export class CmClient extends GgClient<CmMessage> {
     this.deserialize = (buf: Uint8Array) => { return CmMessage.deserialize(buf) }
   }
 
-  override deserialize: (buf: Uint8Array) => CmMessage;
+  // override deserialize: (buf: Uint8Array) => CmMessage;
   /** mark Player as eligible to use GUI, forwarding events to Ref/Group. */
   attachToPlayer(player: Player): CmClient {
     //this.localPlayers.push(player) // dubious; just make another cmClient [maybe share the Table?]
