@@ -401,7 +401,7 @@ export class Table extends EventDispatcher {
         // if cardProps has (vp n) OR (vp (set value)) then provide makeVPCounter for numeric value
       if (!card0.vpCounter && !!card0.props && (Object.keys(card0.props).includes("vp")))
         card0.makeVPCounter(C.vpWhite);
-      if (!card0.noStop && !card0.rentCounter)
+      if (!card0.noStop && !card0.rentCounter && !card0.isTax())
         card0.makeRentCounter();   // all [most] cards subject to rentAdjust
     }
     if (!this.stage.canvas) silent = true             // minor optimization: referee!
@@ -1361,8 +1361,6 @@ export class Table extends EventDispatcher {
     const setScaleXY = (ns = .26, xy: XY = ptZ, sxy: XY = { x: 0, y: 0 }) => {
       // scaleC.setScaleXY & update()
       let fs = scaleC.setScale(ns, xy, sxy)
-      scaleC.x = sxy.x - xy.x * fs;
-      scaleC.y = sxy.y - xy.y * fs;
       this.stage.update()
     }
     const resetScaleX = () => setScaleXY(.1 / Card.scale, TP.bgRect); // 10
@@ -1423,7 +1421,7 @@ export class Table extends EventDispatcher {
     houses.forEach((c: Card) => names.includes(c.name) || names.push(c.name))
 
     const cs = Card.scale; // HousesCont to scale with Card.scale.
-    let sizes: WH = { width: TP.houseSize * cs, height: TP.houseSize * cs }, hs = houseCards[0].WH;
+    let sizes: WH = { width: TP.houseSize * cs, height: TP.houseSize * cs };
     let margins: WH = { width: 30 * cs, height: 4 * cs };
     let counterOpts = { color: "lightblue", fontSize: 12, offset: { x: -40 * cs, y: undefined } };
     let housesCont = table.makeCardCont<HouseMktCont>(contAt, sizes, { clazz: HouseMktCont,

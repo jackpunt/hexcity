@@ -433,26 +433,6 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     this.table.addUndoRec(card, undoName, () => card.moveCardUndo(os))
   }
 
-  /** just use Card (extends CardInfo) */
-  getCardInfo(card: Card): CardInfo {
-    return {
-      path: card.path,
-      nreps: card.nreps,
-      type: card.type,
-      name: card.name,
-      cost: card.cost,
-      step: card.step,
-      stop: card.stop,
-      rent: card.rent,
-      vp: card.vp,
-      ext: card.ext,
-      subtype: card.subtype,
-      text: card.text,
-      props: card.props,
-      image: card.image, // or maybe createjs.Bitmap
-    }
-  }
-
   /** all the 'acard' built from CardInfo2. */
   static cardByName = new Map<string, Card>();
 
@@ -631,8 +611,9 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
     if (!(this.isPolicy() || this.isEvent())) return
     const cx = this.width / 2 - Card.cardMaker.edge - Card.cardMaker.coinSize;;
     const cy = this.ci.ty + this.ci.priceBarSize / 2 - this.height / 2;
-    this['stepRange'] = this.makeCounter('stepRange', this.step, -cx, cy, color) // not a "Counter"
+    this.stepRange = this.makeCounter('stepRange', this.step, -cx, cy, color) // not a "Counter"
   }
+  stepRange: ValueCounter;
 
   bonusMark: ValueCounter; // for Franchise Bonus
   /** Franchise bonus */
@@ -676,8 +657,6 @@ class CoinCounter extends ValueCounter {
 
 }
 export class Flag extends Card {
-  static offx = 5        // put upper-left of Flag in upper-left of [portrait|landscape] card/Slot
-  static offy = 5
   static flagScale = .1      // display ownerCard as tiny
   static ownerFlagName(row:number, col:number):string { return "OWNER-FLAG" + row + ":" + col}
 

@@ -45,6 +45,7 @@ export class GameSetup {
   policyNames: string[];  // names of Policy cards for debug/test spec
   eventNames: string[];  // names of Event cards for debug/test spec
   tileNames: string[];  // names of Tile cards for debug/test spec
+  taxNames: string[];  // names of isTax() cards for paramGUI
   roadNames: string[];  // names of Road cards for debug/test spec
   dirNames: string[];   // name of Dir cards for debug/test spec
   ghost: string;
@@ -201,7 +202,7 @@ export class GameSetup {
     }
 
     /** get names of selected cards, suitable for ParamGUI menu items. */
-    let findNames = (cards: Stack, pred: (card: Card)=>boolean) => {
+    let findNames = (cards: Card[], pred: (card: Card)=>boolean) => {
       let names = [""]
       cards.filter(c => !!c && pred(c) && !names.find(cn => cn == c.name) && names.push(c.name))
       names.sort()
@@ -210,6 +211,7 @@ export class GameSetup {
     this.policyNames = findNames(this.table.policyCards, (c) => c.isPolicy())
     this.eventNames = findNames(this.table.policyCards, (c) => c.isEvent())
     this.tileNames = findNames(this.table.tileCards, (c) => c.isTile())
+    this.taxNames = findNames(this.table.tileCards.concat(this.table.policyCards), c => c.isTax())
     const roadCards = TP.roadsInEvents ? this.table.policyCards : this.table.tileCards;
     this.roadNames = findNames(roadCards, (c) => c.type === 'Road');
     this.dirNames = findNames(this.table.dirCards, (c) => true);
@@ -243,7 +245,7 @@ export class GameSetup {
       const guiC = new NamedContainer('ParamGUI', cx, cy);
       guiC.scaleX = guiC.scaleY = scale;
       scaleCont.addChild(guiC);
-      const gui = this.makeParamGUI(guiC, 0, 0), map = this.table.mainMap.parent;
+      const gui = this.makeParamGUI(guiC), map = this.table.mainMap.parent;
       guiC.x -= (gui.linew + d) * scale;
       this.paramGUI = this.table.paramGUI = gui
       scaleCont.addChildAt(guiC, scaleCont.getChildIndex(map))
@@ -463,6 +465,13 @@ export class GameSetup {
       const roadDeck = TP.roadsInEvents ? this.table.policyDeck : this.table.tileDeck;
       gui.spec("getRoad").onChange = (item: ParamItem) => { getCardByName(item, roadDeck)}
       gui.spec("drawRoad").onChange = (item: ParamItem) => { drawByName(item, roadDeck)}
+    }
+    if (this.taxNames.length > 1) {
+      gui.makeParamSpec("getTax", this.taxNames)
+      gui.makeParamSpec("drawTax", this.taxNames)
+      const taxDeck = TP.taxesInTiles ? this.table.tileDeck : this.table.policyDeck;
+      gui.spec("getTax").onChange = (item: ParamItem) => { getCardByName(item, taxDeck)}
+      gui.spec("drawTax").onChange = (item: ParamItem) => { drawByName(item, taxDeck)}
     }
     {
       gui.makeParamSpec('getDir', this.dirNames)

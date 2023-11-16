@@ -1,23 +1,15 @@
-import { C, F, XY, XYWH, className } from "@thegraid/common-lib";
+import { C, XYWH, className } from "@thegraid/common-lib";
+import { CenterText } from "@thegraid/easeljs-lib";
 import { Container, DisplayObject, Graphics, Shape, Text } from "@thegraid/easeljs-module";
 import type { Hex2 } from "./hex";
 import { H, HexDir } from "./hex-intfs";
-import { PlayerColor, PlayerColorRecord, TP, playerColorRecord } from "./table-params";
-import type { Tile } from "./tile";
+import { TP } from "./table-params";
 
 export class C1 {
   static GREY = 'grey';
   static grey = 'grey';
   static lightgrey2 = 'rgb(225,225,225)' // needs to contrast with WHITE influence lines
   static lightgrey_8 = 'rgb(225,225,225,.8)' // needs to contrast with WHITE influence lines
-}
-
-export class CenterText extends Text {
-  constructor(text?: string, spec: number | string = TP.hexRad / 2, color?: string) {
-    super(text, (typeof spec === 'number') ? F.fontSpec(spec) : spec, color);
-    this.textAlign = 'center';
-    this.textBaseline = 'middle';
-  }
 }
 
 export interface Paintable extends DisplayObject {
@@ -130,18 +122,18 @@ export class EllipseShape extends PaintableShape {
     return g;
   }
 }
-  /**
-   * Circle centered on (0,0)
-   * @param rad radius
-   * retain g0, to use as baseline Graphics for each paint()
-   */
+
+/**
+ * Circle centered on (0,0)
+ * @param rad radius
+ * retain g0, to use as baseline Graphics for each paint()
+ */
 export class CircleShape extends EllipseShape {
   /** retain g0, to use as baseline Graphics for each paint() */
   constructor(fillc = C.white, rad = 30, strokec = C.black, g0?: Graphics) {
     super(fillc, rad, rad, strokec, g0);
   }
 }
-
 
 export class PolyShape extends PaintableShape {
   g0: Graphics;
@@ -158,6 +150,7 @@ export class PolyShape extends PaintableShape {
     return g;
   }
 }
+
 export class RectShape extends PaintableShape {
   static rectWHXY(w: number, h: number, x = -w / 2, y = -h / 2, g0 = new Graphics()) {
     return g0.dr(x, y, w, h)
@@ -290,6 +283,7 @@ export class UtilButton extends Container implements Paintable {
    * @param hide true to hide and disable the turnButton
    * @param afterUpdate callback ('drawend') when stage.update is done [none]
    * @param scope thisArg for afterUpdate [this TurnButton]
+   * @deprecated use easeljs-lib afterUpdate(container, function)
    */
   updateWait(hide: boolean, afterUpdate?: (evt?: Object, ...args: any) => void, scope: any = this) {
     this.blocked = hide;

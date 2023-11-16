@@ -34,7 +34,7 @@ type Notify = {plyr: Player, source: EventDispatcher, eventName: string, dwell: 
  * Outbound from RoboPlayer: S.click, S.dropped/CC.dropEvent
  */
 export class RoboEvent extends Event {
-  override type: string;
+  // override type: string;
   source: EventDispatcher | RoboBase;
   stageX: number = 300 // when RoboEvent pretends to be a "mouseevent" CC.parseMouseClick
   stageY: number = 300

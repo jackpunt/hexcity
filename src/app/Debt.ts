@@ -30,7 +30,7 @@ export class DebtForTable {
 
     // first find Debt tokens, and put into this.mainCont:
     let debtTokens = Debt.resetDebtCards(table, []), debtSize = Debt.WH;
-    let { width, height } = debtSize, ds = Card.scale;
+    let { width, height } = debtSize;
     let marx = mainMap.marginSize.width, mary = mainMap.marginSize.height
     let locXYD: XY = { x: mainMap.leftEdge(marx, 1.25) - width / 2, y: mainMap.topEdge(mary, -1.9) }; // upper-left
 
@@ -587,8 +587,9 @@ export class Debt extends Card {
       this.table.mainMap.showTargetMark.call(this)
   }
   addTargetMark() {
-    this["slotSize"] = this.WH;
-    this.table.gamePlay.makeBuyCostTargetMark(this as any as CardContainer)
+    const debtAsCC = this as any as CardContainer;
+    debtAsCC.slotSize = this.WH;
+    this.table.gamePlay.makeBuyCostTargetMark(debtAsCC);
   }
   showXfer(xfer: number, show = xfer > 0): boolean {
     // like GamePlay.setBuyCostTargetMark...
