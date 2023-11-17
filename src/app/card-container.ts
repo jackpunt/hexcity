@@ -1,7 +1,7 @@
 import { DragInfo, Dragger, Dragole, stime } from '@thegraid/easeljs-lib';
 import { Container, DisplayObject, MouseEvent, Shape } from '@thegraid/easeljs-module';
 import { C, Obj, S, WH, XY } from './basic-intfs';
-import { Card, HasSlotInfo, SlotInfo, Stack } from './card';
+import { Card, HasSlotInfo, HouseToken, SlotInfo, Stack } from './card';
 import { CardEvent } from './card-event';
 import { CI } from './card-maker';
 import { CmClient } from './cm-client';
@@ -226,7 +226,7 @@ export class CardContainer extends Container {
       this.curMark.cont.hideMark('show')
     }
     this.mark.visible = true
-    this.childToTop(this.mark)
+    this.addChild(this.mark);  // to top
     this.curMark = this.mark.slotInfo;
     this.curMark['Myid'] = this.mark['Myid']
     this.curMark['Parid'] = this.mark['Parid']
@@ -361,7 +361,8 @@ export class CardContainer extends Container {
    */
   putCardOnStack(card: Card, row: number, col: number) {
     let stack: Stack = this.getStack(row, col)
-    stack[0] && (stack[0].visible = false) // hide previous card
+    // TODO: stacked cards not in Container.children; use TileSource?
+    if (stack[0] && !(stack[0] instanceof HouseToken)) stack[0].visible = false; // hide lower card
     stack.unshift(card);
     card.visible = true
   }
@@ -389,16 +390,6 @@ export class CardContainer extends Container {
   }
 
   /**
-   * setChildIndex(child, numChildren -1 + down)
-   * @param child
-   * @param down 0: Top card, -1: behind Top Card
-   */
-  childToTop(child: DisplayObject, down:number = 0) {
-    // put to top of Children, is -1 needed/correct?
-    this.setChildIndex(child, this.numChildren -1 + down);
-  }
-
-  /**
    * Stack all (non-Back) cards in the indicated Slot as childToTop.
    *
    * Display "Back" at slot[row][col], but do NOT add back to stack[row][col].
@@ -417,7 +408,7 @@ export class CardContainer extends Container {
     if (!!this.back) {
       // move back over slot(row,col) and bring to Top; DO NOT addCard to stack[row][col]
       this.moveCardToSlot(this.back, row, col)
-      this.childToTop(this.back)
+      this.addChild(this.back); // to top
       this.back.visible = (this.getStack(row, col).length > 0)
     }
     if (this.stage) this.stage.update();

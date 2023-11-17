@@ -433,7 +433,7 @@ export class MainMap extends CardContainer {
     if (show) {
       mark.setValue(buildCost, color);
     }
-    this.childToTop(mark)
+    this.addChild(mark); // to top
   }
   hideLegalMarks() {
     this.forAllStacks((row, col, stack) => (stack[S.legalMark] as ValueCounter).visible = false)

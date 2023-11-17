@@ -292,7 +292,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   step: number;
   stop: number;
   rent: number;
-  vp: string | number;
+  vp: number;
   path: string;
   ext: string | null;
   subtype: SubType | null;
@@ -778,33 +778,27 @@ export class HouseToken extends Card {
     token.calcHousingRentVp(stack)
     return rtoken; // or undefined if no cheaper Token available
   }
-  private offsets = {
-      "House": { x: -1, y: -2 },
-      "Triplex": { x: 1, y: -1 },
-      "Apartments": { x: -1, y: 0 },
-      "High Rise": { x: 1, y: 1 },
-      "Tower": { x: -1, y: 2 }
-    };
+  private offsets = [
+    { x: -1.1, y: 4 },
+    { x: 1.1, y: 4 },
+  ];
   /** Position Houses, then calc rent&vp AND childToTop each HouseToken card. */
   calcHousingRentVp(stack: Stack, si: SlotInfo = this.slotInfo) {
     // NOTE: houses are on the Stack: NOT children of the Card
     /** set rent/vp per housing: */
-    let setOffsetRentVP = (house: Card, ndx: number, stack: Card[]) => {
-      // S.Housing = stack[0] is not a House
-      if (house instanceof HouseToken) {
-        let offs = this.offsets[house.name] || { x: 0, y: 0 }; // with failsafe for potential new House.name
-        let delt = (stack.findIndex(card => card.name == house.name) == ndx) ? 0 : -10
-        let offx = delt + offs.x * house.width * .75;
-        let offy = delt + offs.y * house.height * .75;
-        let {cont, row, col} = si  // for undo: ensure HouseToken is [back] on S.Housing tile...
-        cont.moveAndSetSlotInfo(house, row, col, offx, offy);
-        cont.childToTop(house);
-        rent += (house.rent);
-        vp += (house.vp as number);
-      }
+    const setOffsetRentVP = (house: HouseToken, ndx: number) => {
+      const ofHouse = (offs: number) => offs * .5 * house.width * Card.scale;
+      const offs = this.offsets[ndx];
+      const offx = ofHouse(offs.x);
+      const offy = ofHouse(offs.y) + (tile.ci.top - tile.height / 2) * Card.scale;
+      const { cont, row, col } = si;  // for undo: ensure HouseToken is [back] on S.Housing tile...
+      cont.moveAndSetSlotInfo(house, row, col, offx, offy);
+      cont.addChild(house); // to top, above Housing tile
+      rent += house.rent;
+      vp += house.vp;
     }
     let rent: number = 0, vp: number = 0, tile = stack[0];
-    stack.forEach(setOffsetRentVP);
+    stack.filter(c => c instanceof HouseToken).forEach(setOffsetRentVP);
     tile.rent = rent;
     tile.vp = vp;
   }
