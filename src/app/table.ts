@@ -1316,7 +1316,7 @@ export class Table extends EventDispatcher {
       CardContainer.dragger = new Dragger(scaleC);
       // Special case of makeDragable; drag the parent of Dragger!
       CC.dragger.makeDragable(scaleC, scaleC, undefined, undefined, true); // THE case for NOT useDragCont
-      this.scaleUp(CC.dragger.dragCont, 1.7); // Items being dragged appear larger!
+      this.scaleUp(CC.dragger.dragCont, 2.0); // Items being dragged appear larger!
     }
     if (bindKeys) {
       this.bindKeysToScale("z");
@@ -1350,12 +1350,13 @@ export class Table extends EventDispatcher {
   bindKeysToScale(char = "z", cw = 525 * Card.scale, ch = 750 * Card.scale) {
     const scaleC = this.scaleCont
     const m = this.margin
-    const pg = this.paramGUI, pgb = pg && pg.getBounds()
+    const pg = this.paramGUI, pgb = pg?.getBounds();
     // Offset based on layout to left side of mainMap:
     let minX = pgb ? (cw + 4*ch + 5*m + pgb.width) : (2*cw + 3*ch + 5*m) // ~width of playerCont
     let minY = m
     let ptZ = { x: -minX, y: -minY }
-    let ptA = { x: 400-minX, y: -minY + (pg ? pg.y + 800 : 0) }
+    let ptX = { x: -minX, y: -minY + (pg?.y ?? 0) }
+    let ptA = { x: -minX, y: -minY + (pg?.y ?? 0) }
 
     // setup Keybindings to reset Scale:
     const setScaleXY = (ns = .26, xy: XY = ptZ, sxy: XY = { x: 0, y: 0 }) => {
@@ -1363,8 +1364,8 @@ export class Table extends EventDispatcher {
       let fs = scaleC.setScale(ns, xy, sxy)
       this.stage.update()
     }
-    const resetScaleX = () => setScaleXY(.1 / Card.scale, TP.bgRect); // 10
-    const resetScaleZ = () => setScaleXY(.13 / Card.scale);
+    const resetScaleX = () => setScaleXY(.15 / Card.scale, ptX);
+    const resetScaleZ = () => setScaleXY(.13 / Card.scale, ptZ);
     const resetScaleA = () => setScaleXY(.25 / Card.scale, ptA);
 
     // Scale-setting keystrokes:

@@ -1,5 +1,8 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files.
 
+# Note: this project is never published as a package; app is 'distributed' by web server: ng serve
+*.tgz
+
 # Compiled output
 /dist
 /tmp
@@ -7,6 +10,7 @@
 /bazel-out
 /src/fonts
 /src/app/fonts
+/src/proto/*.orig
 
 # Node
 /node_modules
@@ -42,3 +46,5 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+.tmp.drivedownload/*
+.tmp.driveupload/*

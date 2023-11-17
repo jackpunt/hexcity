@@ -11,7 +11,7 @@
     "tsc": "tsc --build tsconfig.app.json",
     "etest": "npm run test -- effects | grep -v '        '",
     "test": "jest --runInBand --force-exit --detectOpenHandles --verbose",
-    "clean": "rm -rf dist/*",
+    "clean": "rm -rf out-tsc/*",
     "instClient": "npm i ../../ts/wspbclient/thegraid-wspbclient*.tgz",
     "rmall": "aws s3 rm s3://citymap.thegraid.com/ --recursive",
     "rmapp": "aws s3 rm s3://citymap.thegraid.com/ --recursive --exclude \"assets/*\"",

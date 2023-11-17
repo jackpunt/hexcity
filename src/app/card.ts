@@ -288,7 +288,6 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   nreps: number;
   type: CardType;
   color: string;
-  override name: string;
   cost: string | number;
   step: number;
   stop: number;

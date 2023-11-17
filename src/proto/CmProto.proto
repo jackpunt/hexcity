@@ -3,10 +3,10 @@ import 'node_modules/@thegraid/wspbclient/lib/proto/GgProto.proto';
 
 //import "TypedMsg.proto";
 
-// Things to click: 
+// Things to click:
 // undo, turnButton=params/next, choose[]
-// plyrDist=draw/move, tileStack=draw, policStack=draw, 
-// 
+// plyrDist=draw/move, tileStack=draw, policStack=draw,
+//
 /** identify the intent and contents of this message */
 enum CmType {
   cm_none = 0;             // used for testing new/non-specified/non-standard messages
@@ -46,16 +46,16 @@ message TypedMsg {
 message KVpair {
   string name  = 1;
   TypedMsg value = 2;
-} 
+}
 
 /** generally ref/player only accepts message from curPlayer */
 message CmMsgBase {
-  CmType type    = 1;    // indicates which fields are populated: 
+  CmType type    = 1;    // indicates which fields are populated:
   int32  client  = 2;    // client_id from send-wrapper: wrapper.client_from
   int32  player  = 3;    // player.index [0..N-1]; may be set on next(ndx); set by ref in join reply [< 0 for Observers]
   string name    = 4;    // draw, dand[~], (Card.name) [response to flip] params("resetMrkt"), next("round1")
-  string json    = 5;    // JSON for various 
-  CmSlot srcSlot = 6;    // dand, flip, mark, draw, clic 
+  string json    = 5;    // JSON for various
+  CmSlot srcSlot = 6;    // dand, flip, mark, draw, clic
   string inform  = 7;    // dand[~]: buy, build, discard [optional/redundant]; also chat
   CmSlot dstSlot = 8;    // dand
   int32  count   = 9;    // nreps, amount in MoveDebt
@@ -65,16 +65,16 @@ message CmMsgBase {
 }
 enum cmField {
     cmField_0        = 0;    // required enum = 0
-    cmField_type     = 1;    // indicates which fields are populated: 
+    cmField_type     = 1;    // indicates which fields are populated:
     cmField_client   = 2;    // client_id from send-wrapper: wrapper.client_from
     cmField_player   = 3;    // player.index [0..N-1]; may be set on next(ndx); set by ref in join reply [< 0 for Observers]
     cmField_name     = 4;    // playerName for join; roster[client_id] -> [player,client,name]
-    cmField_json     = 5;    // 
+    cmField_json     = 5;    //
     cmField_srcSlot  = 6;    // dand, flit
-    cmField_inform   = 7;    // 
+    cmField_inform   = 7;    //
     cmField_dstSlot  = 8;    // dand
-    cmField_count    = 9;    // 
+    cmField_count    = 9;    //
     cmField_roster   =10;
-    cmField_client_to= 11;   // used internally by Referee: wrapper.client_id
-    cmField_params   = 12;    // TP field = value
+    cmField_client_to=11;    // used internally by Referee: wrapper.client_id
+    cmField_params   =12;    // TP field = value
 }
