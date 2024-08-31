@@ -60,11 +60,11 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "browserTarget": "hexcity:build:production"
+              "buildTarget": "hexcity:build:production"
             },
             "development": {
               "port": 4208,
-              "browserTarget": "hexcity:build:development"
+              "buildTarget": "hexcity:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -72,7 +72,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "hexcity:build"
+            "buildTarget": "hexcity:build"
           }
         },
         "test": {
