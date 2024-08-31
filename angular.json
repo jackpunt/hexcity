@@ -63,6 +63,7 @@
               "browserTarget": "hexcity:build:production"
             },
             "development": {
+              "port": 4208,
               "browserTarget": "hexcity:build:development"
             }
           },
