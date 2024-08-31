@@ -154,7 +154,7 @@ export class Card extends Container implements CardInfo, HasSlotInfo {
   static cardClassName: string = undefined
 
   static cardMaker: CardMaker;
-  static scale = .5;
+  static scale = 1;
 
   /** specifically "Card", not a subclass like Flag, HouseToken or Debt */
   isClassCard(): this is Card { return this.constructor.name === Card.cardClassName; } // === 'Card'

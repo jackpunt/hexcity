@@ -241,7 +241,7 @@ export class GameSetup {
     if (!!this.table.stage.canvas) {
       const scaleCont = this.table.scaleCont = this.table.scaleCont;
       const mktCont = this.table.marketContAt; // put ParamGUI to left of Markets
-      const scale = 2 * Card.scale, d = 5 * scale, cx = mktCont.x, cy = mktCont.y;
+      const scale = 2 * Card.scale, d = 5, cx = mktCont.x, cy = mktCont.y;
       const guiC = new NamedContainer('ParamGUI', cx, cy);
       guiC.scaleX = guiC.scaleY = scale;
       scaleCont.addChild(guiC);
