@@ -44,19 +44,6 @@ class Tile0 extends Container {
   get pColor() { return this.player?.color }
   get recycleVerb(): string { return 'demolished'; }
 
-  /** name in set of filenames loaded in GameSetup */
-  addImageBitmap(name: string, at = this.numChildren - 1) {
-    const img = Tile0.loader.getImage(name), bm = new Bitmap(img);
-    const width = TP.hexRad, scale = width / Math.max(img.height, img.width);
-    bm.scaleX = bm.scaleY = scale;
-    const sw = img.width * scale, sh = img.height * scale;
-    bm.x = -sw / 2;
-    bm.y = -sh / 2;
-    bm.y -= Tile.textSize / 2;
-    this.addChildAt(bm, at);
-    return bm;
-  }
-
   get radius() { return TP.hexRad };
   baseShape: PaintableShape = this.makeShape();
 
@@ -174,16 +161,6 @@ export class Tile extends Tile0 implements Dragable {
 
   override toString(): string {
     return `${this.Aname}@${this.hex?.Aname ?? this.fromHex?.Aname ?? '?'}`;
-  }
-
-
-  /** name in set of filenames loaded in GameSetup
-   * @param at = 2; above HexShape
-   */
-  override addImageBitmap(name: string, at = 2) {
-    let bm = super.addImageBitmap(name, at);
-    this.updateCache();
-    return bm;
   }
 
   addTextChild(y0 = this.radius / 2, text = this.Aname.replace(/-/g, '\n'), size = Tile.textSize, vis = false) {
